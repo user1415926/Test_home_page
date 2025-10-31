@@ -142,6 +142,167 @@ function dipf_tail_log( $lines = 80 ) {
 }
 
 // -----------------------------------------------------------------------------
+// Importer invocation helpers
+// -----------------------------------------------------------------------------
+
+/**
+ * Call the underlying importer once with the provided parameters.
+ *
+ * @param int    $offset     Start offset/group.
+ * @param int    $limit      Groups per batch.
+ * @param string $csv        CSV path.
+ * @param bool   $dry        Dry-run flag.
+ * @param bool   $prefer_csv Whether CSV importer is preferred.
+ *
+ * @return array {
+ *     @type mixed       $result   Raw importer result (may be null or array).
+ *     @type string|null $error    Error message on failure.
+ *     @type string|null $used     Name of the importer function used.
+ *     @type float       $duration Duration of the call in seconds.
+ * }
+ */
+function dipf_call_importer_once( $offset, $limit, $csv, $dry, $prefer_csv ) {
+    $result   = null;
+    $error    = null;
+    $used     = null;
+    $start    = microtime( true );
+    $limit    = max( 1, intval( $limit ) );
+    $offset   = max( 0, intval( $offset ) );
+    $args_csv = array(
+        'dry_run'          => (bool) $dry,
+        'start_group'      => $offset,
+        'groups_per_batch' => $limit,
+    );
+
+    try {
+        if ( $prefer_csv && function_exists( 'drop_import_csv_adapted' ) ) {
+            dipf_debug_log( 'Calling drop_import_csv_adapted() with limit ' . $limit . ' (preferred).' );
+            $result = drop_import_csv_adapted( $csv, $args_csv );
+            $used   = 'drop_import_csv_adapted';
+        } elseif ( function_exists( 'drop_importer_process_chunk' ) ) {
+            dipf_debug_log( 'Calling drop_importer_process_chunk() with limit ' . $limit . '.' );
+            $used = 'drop_importer_process_chunk';
+            try {
+                $result = call_user_func( 'drop_importer_process_chunk', $offset, $limit, $csv );
+            } catch ( ArgumentCountError $e ) {
+                dipf_debug_log( 'drop_importer_process_chunk signature mismatch, retrying without CSV argument.' );
+                $result = call_user_func( 'drop_importer_process_chunk', $offset, $limit );
+            }
+        } elseif ( function_exists( 'drop_import_csv_adapted' ) ) {
+            dipf_debug_log( 'Calling drop_import_csv_adapted() fallback with limit ' . $limit . '.' );
+            $result = drop_import_csv_adapted( $csv, $args_csv );
+            $used   = 'drop_import_csv_adapted';
+        } else {
+            $error = 'Importer functions not found';
+        }
+    } catch ( Exception $e ) {
+        $error = $e->getMessage();
+    } catch ( Error $err ) {
+        $error = $err->getMessage();
+    }
+
+    if ( is_wp_error( $result ) ) {
+        $error = $result->get_error_message();
+    }
+
+    $duration = microtime( true ) - $start;
+
+    return array(
+        'result'   => $result,
+        'error'    => $error,
+        'used'     => $used,
+        'duration' => $duration,
+    );
+}
+
+/**
+ * Normalise importer output so callers can reason about progress.
+ *
+ * @param mixed $result Raw importer result.
+ * @param int   $offset Start offset that was requested.
+ * @param int   $limit  Limit that was requested for this call.
+ *
+ * @return array {
+ *     @type int|null $processed    How many groups/items were processed (best effort).
+ *     @type int|null $next_offset  Next offset to continue from, if known.
+ *     @type int|null $total_groups Total groups reported by importer, if any.
+ *     @type bool     $finished     Whether importer reports completion.
+ * }
+ */
+function dipf_normalize_importer_summary( $result, $offset, $limit ) {
+    $offset        = intval( $offset );
+    $limit         = max( 1, intval( $limit ) );
+    $processed     = null;
+    $next_offset   = null;
+    $total_groups  = null;
+    $finished      = false;
+
+    if ( is_array( $result ) ) {
+        if ( isset( $result['processed_groups'] ) ) {
+            $processed = intval( $result['processed_groups'] );
+        } elseif ( isset( $result['processed'] ) ) {
+            $processed = intval( $result['processed'] );
+        }
+
+        if ( isset( $result['next_offset'] ) ) {
+            $next_offset = intval( $result['next_offset'] );
+        } elseif ( isset( $result['start_group'], $result['groups_per_batch'] ) ) {
+            $next_offset = intval( $result['start_group'] ) + intval( $result['groups_per_batch'] );
+        } elseif ( isset( $result['start_group'] ) ) {
+            $next_offset = intval( $result['start_group'] );
+        } elseif ( isset( $result['offset'] ) ) {
+            $next_offset = intval( $result['offset'] );
+        }
+
+        if ( isset( $result['groups_total'] ) ) {
+            $total_groups = intval( $result['groups_total'] );
+        } elseif ( isset( $result['total_groups'] ) ) {
+            $total_groups = intval( $result['total_groups'] );
+        }
+
+        if ( isset( $result['finished'] ) ) {
+            $finished = (bool) $result['finished'];
+        }
+    }
+
+    if ( null === $processed && null !== $next_offset ) {
+        $processed = max( 0, intval( $next_offset ) - $offset );
+    }
+
+    if ( null === $processed && is_array( $result ) && isset( $result['preview'] ) && is_array( $result['preview'] ) ) {
+        $processed = count( $result['preview'] );
+    }
+
+    if ( null === $processed ) {
+        $processed = 0;
+    }
+
+    if ( null === $next_offset && $processed > 0 ) {
+        $next_offset = $offset + $processed;
+    }
+
+    if ( null !== $total_groups && null !== $next_offset ) {
+        if ( $next_offset >= $total_groups ) {
+            $finished    = true;
+            $next_offset = $total_groups;
+        }
+    }
+
+    if ( ! $finished && 0 === $processed && ( null === $next_offset || $next_offset <= $offset ) ) {
+        if ( ! is_array( $result ) || empty( $result ) ) {
+            $finished = true;
+        }
+    }
+
+    return array(
+        'processed'    => max( 0, intval( $processed ) ),
+        'next_offset'  => null === $next_offset ? null : intval( $next_offset ),
+        'total_groups' => null === $total_groups ? null : intval( $total_groups ),
+        'finished'     => (bool) $finished,
+    );
+}
+
+// -----------------------------------------------------------------------------
 // HTTP filters
 // -----------------------------------------------------------------------------
 
@@ -412,169 +573,285 @@ add_action(
         $debug_post  = ! empty( $_POST['debug'] );
 
         dipf_set_debug_flag( $debug_post );
+        $debug_enabled = dipf_debug_enabled();
         dipf_debug_log( 'AJAX request payload: ' . dipf_debug_serialize( $_POST ) );
 
+        $error_message   = null;
+        $error_code      = 200;
+        $error_meta      = array();
+        $error_debug     = array();
+        $success_payload = null;
+
         if ( empty( $csv ) || ! file_exists( $csv ) ) {
+            $error_message = 'CSV not found: ' . $csv;
+            $error_code    = 400;
+            $error_meta    = array(
+                'offset' => intval( $offset ),
+                'limit'  => intval( $limit ),
+                'csv'    => $csv,
+            );
             dipf_log( 'AJAX CSV missing at offset ' . $offset . ': ' . $csv );
-            dipf_set_debug_flag( null );
-            wp_send_json_error(
-                array(
-                    'message' => 'CSV not found: ' . $csv,
-                    'debug'   => array(
-                        'offset' => $offset,
-                        'limit'  => $limit,
-                    ),
-                ),
-                400
-            );
-        }
-
-        @set_time_limit( 0 );
-        @ini_set( 'memory_limit', '1024M' );
-
-        if ( $skip_images ) {
-            add_filter( 'pre_http_request', 'dipf_pre_http_request_filter', 10, 3 );
-        }
-
-        add_filter( 'http_request_timeout', 'dipf_http_timeout_filter' );
-
-        $result = null;
-        $error  = null;
-
-        try {
-            if ( $prefer_csv && function_exists( 'drop_import_csv_adapted' ) ) {
-                $args   = array(
-                    'dry_run'          => $dry,
-                    'start_group'      => $offset,
-                    'groups_per_batch' => $limit,
-                );
-                dipf_debug_log( 'AJAX calling drop_import_csv_adapted().' );
-                $result = drop_import_csv_adapted( $csv, $args );
-            } elseif ( function_exists( 'drop_importer_process_chunk' ) ) {
-                dipf_debug_log( 'AJAX calling drop_importer_process_chunk().' );
-                try {
-                    $result = call_user_func( 'drop_importer_process_chunk', $offset, $limit, $csv );
-                } catch ( ArgumentCountError $e ) {
-                    dipf_debug_log( 'drop_importer_process_chunk argument mismatch: ' . $e->getMessage() );
-                    $result = call_user_func( 'drop_importer_process_chunk', $offset, $limit );
-                }
-            } elseif ( function_exists( 'drop_import_csv_adapted' ) ) {
-                $args   = array(
-                    'dry_run'          => $dry,
-                    'start_group'      => $offset,
-                    'groups_per_batch' => $limit,
-                );
-                dipf_debug_log( 'AJAX calling drop_import_csv_adapted() fallback.' );
-                $result = drop_import_csv_adapted( $csv, $args );
-            } else {
-                $error = 'Importer functions not found';
-            }
-        } catch ( Exception $e ) {
-            $error = $e->getMessage();
-            dipf_log( 'AJAX exception: ' . $error );
-            dipf_debug_log( 'AJAX exception trace: ' . dipf_debug_serialize( $e->getTraceAsString() ) );
-        } catch ( Error $err ) {
-            $error = $err->getMessage();
-            dipf_log( 'AJAX fatal error: ' . $error );
-            dipf_debug_log( 'AJAX fatal trace: ' . dipf_debug_serialize( $err->getTraceAsString() ) );
-        }
-
-        if ( is_wp_error( $result ) ) {
-            $error = $result->get_error_message();
-            dipf_log( 'AJAX importer WP_Error: ' . $error );
-            dipf_debug_log( 'AJAX importer WP_Error detail: ' . dipf_debug_serialize( $result ) );
-            $result = null;
-        }
-
-        remove_filter( 'http_request_timeout', 'dipf_http_timeout_filter' );
-        if ( $skip_images ) {
-            remove_filter( 'pre_http_request', 'dipf_pre_http_request_filter', 10 );
-        }
-
-        if ( $error ) {
-            dipf_log( 'AJAX chunk error offset=' . $offset . ' limit=' . $limit . ' : ' . $error );
-            dipf_set_debug_flag( null );
-            wp_send_json_error(
-                array(
-                    'message' => $error,
-                    'debug'   => array(
-                        'offset'      => $offset,
-                        'limit'       => $limit,
-                        'dry'         => $dry,
-                        'skip_images' => $skip_images,
-                        'prefer_csv'  => $prefer_csv,
-                    ),
-                )
-            );
-        }
-
-        if ( ! is_array( $result ) ) {
-            $result = array();
-        }
-
-        dipf_debug_log( 'AJAX success raw result: ' . dipf_debug_serialize( $result ) );
-
-        $processed    = $result['processed_groups'] ?? ( $result['processed'] ?? null );
-        $total_groups = $result['groups_total'] ?? ( $result['total_groups'] ?? null );
-        $next_offset  = null;
-
-        if ( isset( $result['start_group'], $result['groups_per_batch'] ) ) {
-            $next_offset = intval( $result['start_group'] ) + intval( $result['groups_per_batch'] );
-        } elseif ( isset( $result['next_offset'] ) ) {
-            $next_offset = intval( $result['next_offset'] );
-        } elseif ( isset( $result['start_group'] ) ) {
-            $next_offset = intval( $result['start_group'] );
-        }
-
-        if ( null === $next_offset && null !== $processed ) {
-            $next_offset = intval( $offset ) + intval( $processed );
-        }
-
-        if ( null === $next_offset && isset( $result['preview'] ) && is_array( $result['preview'] ) ) {
-            $next_offset = intval( $offset ) + count( $result['preview'] );
-        }
-
-        if ( null === $next_offset ) {
-            if ( ! empty( $result ) ) {
-                $next_offset = intval( $offset ) + intval( $limit );
-            } else {
-                $next_offset = null;
-            }
-        }
-
-        $finished = false;
-        if ( null !== $next_offset && null !== $total_groups ) {
-            if ( $next_offset >= intval( $total_groups ) ) {
-                $finished = true;
-            }
-        }
-
-        if ( null !== $next_offset ) {
-            update_option( 'drop_importer_progress_offset', $next_offset );
-            dipf_log( 'AJAX chunk inferred next_offset=' . $next_offset . ' (processed=' . ( null === $processed ? 'n/a' : $processed ) . ')' );
         } else {
-            dipf_log( 'AJAX chunk could not infer next_offset (offset=' . $offset . ', limit=' . $limit . ')' );
-        }
+            @set_time_limit( 0 );
+            @ini_set( 'memory_limit', '1024M' );
 
-        $payload = array(
-            'processed'   => $processed,
-            'next_offset' => $next_offset,
-            'finished'    => $finished,
-            'raw'         => $result,
-        );
+            $timeout_filter_added = false;
+            $skip_filter_added    = false;
 
-        if ( dipf_debug_enabled() ) {
-            $payload['debug'] = array(
-                'offset'      => $offset,
-                'limit'       => $limit,
-                'dry'         => $dry,
-                'skip_images' => $skip_images,
-                'prefer_csv'  => $prefer_csv,
+            if ( $skip_images ) {
+                add_filter( 'pre_http_request', 'dipf_pre_http_request_filter', 10, 3 );
+                $skip_filter_added = true;
+            }
+
+            add_filter( 'http_request_timeout', 'dipf_http_timeout_filter' );
+            $timeout_filter_added = true;
+
+            $runtime_limit  = max( 5, (int) apply_filters( 'dipf_ajax_runtime_limit_seconds', 20 ) );
+            $per_call_limit = max( 1, (int) apply_filters( 'dipf_ajax_subchunk_limit', 20 ) );
+            $max_iterations = max( 1, (int) apply_filters( 'dipf_ajax_max_iterations', 10 ) );
+
+            dipf_debug_log(
+                'AJAX limits runtime=' . $runtime_limit . 's per_call=' . $per_call_limit . ' max_iter=' . $max_iterations
             );
+
+            $start_time        = microtime( true );
+            $processed_total   = 0;
+            $current_offset    = intval( $offset );
+            $loops             = 0;
+            $finished          = false;
+            $stalled           = false;
+            $time_cap_hit      = false;
+            $iteration_cap_hit = false;
+            $used_functions    = array();
+            $substeps          = array();
+            $last_raw          = null;
+            $last_summary      = null;
+
+            while ( $processed_total < $limit ) {
+                $elapsed = microtime( true ) - $start_time;
+                if ( $elapsed >= $runtime_limit ) {
+                    $time_cap_hit = true;
+                    break;
+                }
+
+                if ( $loops >= $max_iterations ) {
+                    $iteration_cap_hit = true;
+                    break;
+                }
+
+                $remaining = max( 0, $limit - $processed_total );
+                if ( $remaining <= 0 ) {
+                    break;
+                }
+
+                $batch_limit = min( $remaining, $per_call_limit );
+                $loops++;
+
+                $call = dipf_call_importer_once( $current_offset, $batch_limit, $csv, $dry, $prefer_csv );
+                $call_meta = array(
+                    'offset'   => $current_offset,
+                    'limit'    => $batch_limit,
+                    'duration' => $call['duration'],
+                );
+
+                if ( $call['used'] ) {
+                    $call_meta['used'] = $call['used'];
+                    $used_functions[ $call['used'] ] = true;
+                }
+
+                if ( $call['error'] ) {
+                    $error_message = $call['error'];
+                    $error_meta    = array(
+                        'offset'           => $current_offset,
+                        'limit'            => $batch_limit,
+                        'requested_offset' => intval( $offset ),
+                        'requested_limit'  => intval( $limit ),
+                        'per_call_limit'   => $per_call_limit,
+                        'loops_completed'  => $loops - 1,
+                        'runtime'          => $elapsed,
+                        'runtime_limit'    => $runtime_limit,
+                        'max_iterations'   => $max_iterations,
+                        'used_functions'   => array_keys( $used_functions ),
+                    );
+
+                    if ( $debug_enabled ) {
+                        $error_debug['call']     = $call_meta;
+                        $error_debug['raw']      = $call['result'];
+                        $error_debug['subcalls'] = $substeps;
+                    }
+                    break;
+                }
+
+                $result = $call['result'];
+
+                if ( is_wp_error( $result ) ) {
+                    $error_message = $result->get_error_message();
+                    $error_meta    = array(
+                        'offset'           => $current_offset,
+                        'limit'            => $batch_limit,
+                        'requested_offset' => intval( $offset ),
+                        'requested_limit'  => intval( $limit ),
+                        'per_call_limit'   => $per_call_limit,
+                        'loops_completed'  => $loops - 1,
+                        'runtime'          => $elapsed,
+                        'runtime_limit'    => $runtime_limit,
+                        'max_iterations'   => $max_iterations,
+                        'used_functions'   => array_keys( $used_functions ),
+                    );
+
+                    if ( $debug_enabled ) {
+                        $error_debug['call']     = $call_meta;
+                        $error_debug['raw']      = $result;
+                        $error_debug['subcalls'] = $substeps;
+                    }
+                    break;
+                }
+
+                $summary = dipf_normalize_importer_summary( $result, $current_offset, $batch_limit );
+                $call_meta['processed']   = $summary['processed'];
+                $call_meta['next_offset'] = $summary['next_offset'];
+                $call_meta['finished']    = $summary['finished'];
+
+                $substeps[]   = $call_meta;
+                $last_raw     = $result;
+                $last_summary = $summary;
+
+                $processed_batch = intval( $summary['processed'] );
+                $next_offset     = $summary['next_offset'];
+                $finished        = (bool) $summary['finished'];
+
+                if ( $processed_batch <= 0 && ( null === $next_offset || intval( $next_offset ) <= $current_offset ) ) {
+                    $stalled = true;
+                    break;
+                }
+
+                $processed_total += $processed_batch;
+
+                if ( null !== $next_offset ) {
+                    $current_offset = intval( $next_offset );
+                } else {
+                    $current_offset = $current_offset + $processed_batch;
+                }
+
+                if ( $finished ) {
+                    break;
+                }
+            }
+
+            $total_runtime = microtime( true ) - $start_time;
+
+            if ( $timeout_filter_added ) {
+                remove_filter( 'http_request_timeout', 'dipf_http_timeout_filter' );
+            }
+            if ( $skip_filter_added ) {
+                remove_filter( 'pre_http_request', 'dipf_pre_http_request_filter', 10 );
+            }
+
+            if ( ! $error_message ) {
+                $next_offset_response = $finished ? null : $current_offset;
+
+                if ( $stalled ) {
+                    $next_offset_response = null;
+                }
+
+                if ( null !== $next_offset_response ) {
+                    update_option( 'drop_importer_progress_offset', intval( $next_offset_response ) );
+                }
+
+                $meta = array(
+                    'requested_offset'   => intval( $offset ),
+                    'requested_limit'    => intval( $limit ),
+                    'per_call_limit'     => $per_call_limit,
+                    'runtime_limit'      => $runtime_limit,
+                    'runtime'            => $total_runtime,
+                    'loops'              => $loops,
+                    'runtime_capped'     => $time_cap_hit,
+                    'max_iterations_hit' => $iteration_cap_hit,
+                    'stalled'            => $stalled,
+                    'final_offset'       => $next_offset_response,
+                    'used_functions'     => array_keys( $used_functions ),
+                );
+
+                if ( $debug_enabled ) {
+                    $meta['subcalls']     = $substeps;
+                    $meta['last_summary'] = $last_summary;
+                }
+
+                $success_payload = array(
+                    'processed'   => intval( $processed_total ),
+                    'next_offset' => $next_offset_response,
+                    'finished'    => (bool) ( $finished || $stalled ),
+                    'raw'         => $debug_enabled ? $last_raw : null,
+                    'meta'        => $meta,
+                );
+
+                $log_msg  = 'AJAX summary offset=' . intval( $offset );
+                $log_msg .= ' processed=' . intval( $processed_total );
+                $log_msg .= ' next=' . ( null === $next_offset_response ? 'null' : intval( $next_offset_response ) );
+                $log_msg .= ' loops=' . $loops;
+                $log_msg .= ' runtime=' . round( $total_runtime, 3 ) . 's';
+                $log_msg .= ' finished=' . ( $finished ? '1' : '0' );
+                if ( $time_cap_hit ) {
+                    $log_msg .= ' runtime_cap=1';
+                }
+                if ( $iteration_cap_hit ) {
+                    $log_msg .= ' iteration_cap=1';
+                }
+                if ( $stalled ) {
+                    $log_msg .= ' stalled=1';
+                }
+                dipf_log( $log_msg );
+            } else {
+                if ( ! $error_meta ) {
+                    $error_meta = array(
+                        'requested_offset' => intval( $offset ),
+                        'requested_limit'  => intval( $limit ),
+                        'per_call_limit'   => $per_call_limit,
+                        'runtime_limit'    => $runtime_limit,
+                        'runtime'          => microtime( true ) - $start_time,
+                        'loops_completed'  => $loops,
+                        'used_functions'   => array_keys( $used_functions ),
+                        'stalled'          => $stalled,
+                    );
+                }
+            }
         }
 
         dipf_set_debug_flag( null );
-        wp_send_json_success( $payload );
+
+        if ( $error_message ) {
+            dipf_log( 'AJAX chunk error offset=' . intval( $offset ) . ' limit=' . intval( $limit ) . ' : ' . $error_message );
+
+            $payload = array(
+                'message' => $error_message,
+                'meta'    => $error_meta,
+            );
+
+            if ( $debug_enabled && ! empty( $error_debug ) ) {
+                $payload['debug'] = $error_debug;
+            }
+
+            wp_send_json_error( $payload, $error_code );
+        }
+
+        if ( ! $success_payload ) {
+            $success_payload = array(
+                'processed'   => 0,
+                'next_offset' => null,
+                'finished'    => true,
+                'raw'         => null,
+                'meta'        => array(
+                    'requested_offset' => intval( $offset ),
+                    'requested_limit'  => intval( $limit ),
+                    'per_call_limit'   => isset( $per_call_limit ) ? $per_call_limit : null,
+                    'runtime'          => isset( $total_runtime ) ? $total_runtime : 0,
+                    'loops'            => isset( $loops ) ? $loops : 0,
+                    'stalled'          => true,
+                ),
+            );
+        }
+
+        wp_send_json_success( $success_payload );
     }
 );
 
@@ -597,7 +874,7 @@ add_action(
             'dipr-runner-js',
             plugin_dir_url( __FILE__ ) . 'dipr-runner.js',
             array( 'jquery' ),
-            '1.2.0',
+            '1.3.0',
             true
         );
 

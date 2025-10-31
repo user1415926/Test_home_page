@@ -152,6 +152,14 @@ jQuery(function ($) {
                         handleDebugBlock(data.debug);
                     }
 
+                    if (data.meta) {
+                        try {
+                            logLine('Meta: ' + JSON.stringify(data.meta));
+                        } catch (err) {
+                            logLine('Meta: [unserializable payload]');
+                        }
+                    }
+
                     if (data.next_offset !== null && data.next_offset !== undefined) {
                         $('#dipr_offset_input').val(data.next_offset);
                         if (!data.finished) {
@@ -169,6 +177,13 @@ jQuery(function ($) {
                     logLine('Chunk error: ' + message);
                     if (resp.data && resp.data.debug) {
                         handleDebugBlock(resp.data.debug);
+                    }
+                    if (resp.data && resp.data.meta) {
+                        try {
+                            logLine('Meta: ' + JSON.stringify(resp.data.meta));
+                        } catch (err) {
+                            logLine('Meta: [unserializable payload]');
+                        }
                     }
                     running = false;
                 }
