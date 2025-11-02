@@ -177,6 +177,17 @@ final class Audio_Waveform_Visualizer {
                                 <?php esc_html_e('Add command', 'audio-waveform-visualizer'); ?>
                             </button>
                         </div>
+                        <div class="awv-track-tuning">
+                            <label class="awv-tuning-item">
+                                <span><?php esc_html_e('Zoom', 'audio-waveform-visualizer'); ?></span>
+                                <input type="range" class="awv-zoom" min="40" max="600" step="10" value="150">
+                            </label>
+                            <label class="awv-tuning-item">
+                                <span><?php esc_html_e('Speed', 'audio-waveform-visualizer'); ?></span>
+                                <input type="number" class="awv-speed" min="0.25" max="3" step="0.05" value="1">
+                            </label>
+                            <button type="button" class="button awv-reset-speed"><?php esc_html_e('Reset speed', 'audio-waveform-visualizer'); ?></button>
+                        </div>
                         <div class="awv-file-info" hidden></div>
                         <div class="awv-wave-wrapper">
                             <div class="awv-waveform" id="<?php echo esc_attr($track_id); ?>"></div>

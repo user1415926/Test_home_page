@@ -30,7 +30,7 @@
         return Number.isFinite(parsed) ? parsed : fallback;
     };
 
-    const showTemporaryMessage = (element, message, duration) => {
+    const showTemporaryMessage = (element, message, duration = 2000) => {
         if (!element) {
             return;
         }
@@ -351,6 +351,9 @@
         const playRegionButton = trackElement.querySelector('.awv-play-region');
         const clearRegionButton = trackElement.querySelector('.awv-clear-region');
         const addCommandButton = trackElement.querySelector('.awv-add-command');
+        const zoomSlider = trackElement.querySelector('.awv-zoom');
+        const speedInput = trackElement.querySelector('.awv-speed');
+        const resetSpeedButton = trackElement.querySelector('.awv-reset-speed');
 
         const waveContainer = trackElement.querySelector('.awv-waveform');
         const progressLabel = trackElement.querySelector('.awv-progress');
@@ -372,6 +375,14 @@
         let currentRegion = null;
         let isReady = false;
         let audioTitle = '';
+        let trackSpeed = speedInput ? parseNumber(speedInput.value, 1) : 1;
+        if (!Number.isFinite(trackSpeed) || trackSpeed <= 0) {
+            trackSpeed = 1;
+        }
+        let trackZoom = zoomSlider ? Number.parseInt(zoomSlider.value, 10) : 150;
+        if (!Number.isFinite(trackZoom) || trackZoom <= 0) {
+            trackZoom = 150;
+        }
 
         const setLoading = (loading, message) => {
             if (!progressLabel) {
@@ -500,6 +511,7 @@
             wave.on('ready', () => {
                 isReady = true;
                 setLoading(false);
+                wave.setPlaybackRate(trackSpeed > 0 ? trackSpeed : 1);
                 updateControls();
             });
 
@@ -545,6 +557,12 @@
             });
         };
 
+        const applyZoom = () => {
+            if (wave && typeof wave.zoom === 'function') {
+                wave.zoom(trackZoom);
+            }
+        };
+
         const createWave = () => {
             if (!waveContainer || typeof WaveSurfer === 'undefined' || !WaveSurfer) {
                 workspaceApi.showStatus('WaveSurfer is not available.', 'error');
@@ -569,6 +587,7 @@
             });
 
             attachWaveEvents();
+            window.setTimeout(applyZoom, 0);
         };
 
         const loadAudio = (source) => {
@@ -664,6 +683,7 @@
                 if (!wave || !isReady) {
                     return;
                 }
+                wave.setPlaybackRate(trackSpeed > 0 ? trackSpeed : 1);
                 wave.playPause();
                 updateControls();
             });
@@ -685,8 +705,12 @@
                     showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2500);
                     return;
                 }
-                wave.setPlaybackRate(1);
-                wave.play(currentRegion.start, currentRegion.end);
+                wave.setPlaybackRate(trackSpeed > 0 ? trackSpeed : 1);
+                if (typeof currentRegion.play === 'function') {
+                    currentRegion.play();
+                } else {
+                    wave.play(currentRegion.start, currentRegion.end);
+                }
             });
         }
 
@@ -742,6 +766,39 @@
                 }
 
                 workspaceApi.addCommand(command);
+            });
+        }
+
+        if (speedInput) {
+            speedInput.addEventListener('change', () => {
+                const parsed = parseNumber(speedInput.value, trackSpeed);
+                trackSpeed = parsed > 0 ? parsed : 1;
+                speedInput.value = trackSpeed.toFixed(2);
+                if (wave) {
+                    wave.setPlaybackRate(trackSpeed);
+                }
+            });
+        }
+
+        if (resetSpeedButton) {
+            resetSpeedButton.addEventListener('click', () => {
+                trackSpeed = 1;
+                if (speedInput) {
+                    speedInput.value = '1';
+                }
+                if (wave) {
+                    wave.setPlaybackRate(1);
+                }
+            });
+        }
+
+        if (zoomSlider) {
+            zoomSlider.addEventListener('input', () => {
+                const parsed = Number.parseInt(zoomSlider.value, 10);
+                if (Number.isFinite(parsed) && parsed > 0) {
+                    trackZoom = parsed;
+                    applyZoom();
+                }
             });
         }
 

@@ -55,6 +55,30 @@
     gap: 8px;
 }
 
+.awv-track-tuning {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.awv-tuning-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #475569;
+}
+
+.awv-tuning-item input[type="range"] {
+    width: 160px;
+}
+
+.awv-tuning-item input[type="number"] {
+    width: 70px;
+}
+
 .awv-button.button[disabled],
 .awv-command-table button.button[disabled] {
     opacity: 0.5;
