@@ -1,0 +1,549 @@
+.akai-mpc1000-shell {
+	font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+	color: #f9f9f9;
+	background: radial-gradient(circle at top left, #0b1623, #020409 70%);
+	min-height: 640px;
+	padding: 16px;
+	box-sizing: border-box;
+}
+
+.mpc-container {
+	display: grid;
+	grid-template-columns: 280px 1fr;
+	gap: 24px;
+}
+
+.mpc-container .mpc-main {
+	background: rgba(10, 16, 26, 0.85);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+	border-radius: 16px;
+	padding: 24px;
+	display: grid;
+	grid-template-areas:
+		"transport transport"
+		"pads pads"
+		"pad-editor sequencer"
+		"song sequencer";
+	grid-template-columns: 360px 1fr;
+	grid-template-rows: auto auto 320px auto;
+	gap: 24px;
+}
+
+.mpc-sidebar {
+	background: linear-gradient(180deg, #152233 0%, #0e1826 100%);
+	border-radius: 16px;
+	padding: 24px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	box-shadow: inset 0 0 32px rgba(0, 0, 0, 0.3);
+}
+
+.mpc-sidebar header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
+}
+
+.mpc-sidebar h2 {
+	margin: 0;
+	font-size: 1.2rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.mpc-project-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	max-height: 340px;
+	overflow: auto;
+	display: grid;
+	gap: 12px;
+}
+
+.mpc-project-list li button {
+	width: 100%;
+	text-align: left;
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	background: rgba(12, 18, 28, 0.7);
+	color: inherit;
+	cursor: pointer;
+	transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.mpc-project-list li button:hover {
+	border-color: rgba(0, 171, 255, 0.55);
+	background: rgba(10, 42, 64, 0.9);
+	transform: translateY(-1px);
+}
+
+.mpc-btn {
+	background: linear-gradient(180deg, #1d2b3f 0%, #0d1726 100%);
+	color: #f0f6ff;
+	border: 1px solid rgba(0, 170, 255, 0.25);
+	border-radius: 10px;
+	padding: 8px 16px;
+	text-transform: uppercase;
+	font-size: 0.75rem;
+	letter-spacing: 0.1em;
+	cursor: pointer;
+	transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.1s ease;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.mpc-btn:hover {
+	transform: translateY(-1px);
+	border-color: rgba(0, 170, 255, 0.5);
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+.mpc-btn:active {
+	transform: translateY(1px);
+	box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.mpc-btn-primary {
+	background: linear-gradient(180deg, #0074ff 0%, #003f9c 100%);
+	border-color: rgba(0, 171, 255, 0.6);
+}
+
+.mpc-btn-secondary {
+	background: linear-gradient(180deg, #2f394d 0%, #1b2537 100%);
+	border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mpc-transport {
+	grid-area: transport;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	background: rgba(4, 10, 18, 0.65);
+	border-radius: 12px;
+	padding: 16px 20px;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.transport-controls {
+	display: flex;
+	gap: 12px;
+}
+
+.transport-settings {
+	display: flex;
+	gap: 18px;
+	align-items: center;
+	font-size: 0.82rem;
+}
+
+.transport-settings label {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.transport-settings input,
+.transport-settings select {
+	background: rgba(0, 0, 0, 0.3);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 8px;
+	color: inherit;
+	height: 32px;
+	padding: 0 10px;
+}
+
+.transport-settings select {
+	padding: 0 8px;
+}
+
+.mpc-padbanks {
+	grid-area: pads;
+	background: radial-gradient(circle at top, rgba(19, 31, 48, 0.85), rgba(6, 12, 22, 0.9));
+	border-radius: 16px;
+	padding: 20px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.35);
+}
+
+.mpc-bank-tabs {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.mpc-tab {
+	background: rgba(15, 25, 40, 0.9);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 12px;
+	padding: 10px 0;
+	color: inherit;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mpc-tab.is-active {
+	background: linear-gradient(180deg, #11a1ff 0%, #086ac8 100%);
+	border-color: rgba(17, 161, 255, 0.8);
+	color: #021021;
+	font-weight: 700;
+}
+
+.mpc-pad-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 14px;
+}
+
+.mpc-pad {
+	position: relative;
+	background: rgba(2, 4, 9, 0.9);
+	border-radius: 16px;
+	height: 110px;
+	border: 2px solid rgba(255, 255, 255, 0.08);
+	box-shadow: inset -6px -6px 12px rgba(0, 0, 0, 0.35), inset 4px 4px 8px rgba(255, 255, 255, 0.05);
+	transition: transform 0.07s ease, border-color 0.07s ease, box-shadow 0.07s ease;
+	cursor: pointer;
+	color: inherit;
+}
+
+.mpc-pad::after {
+	content: "";
+	position: absolute;
+	inset: 12px;
+	border-radius: 12px;
+	background: radial-gradient(circle at top, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.35));
+	opacity: 0.75;
+	transition: opacity 0.1s ease;
+}
+
+.mpc-pad:hover {
+	border-color: rgba(255, 255, 255, 0.18);
+	transform: translateY(-2px);
+}
+
+.mpc-pad:active {
+	transform: translateY(2px);
+	box-shadow: inset 8px 8px 12px rgba(0, 0, 0, 0.4);
+}
+
+.mpc-pad .pad-label {
+	position: absolute;
+	top: 10px;
+	left: 12px;
+	font-size: 0.95rem;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.mpc-pad .pad-sample {
+	position: absolute;
+	left: 12px;
+	bottom: 10px;
+	font-size: 0.82rem;
+	color: rgba(255, 255, 255, 0.7);
+	max-width: calc(100% - 24px);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mpc-pad::before {
+	content: "";
+	position: absolute;
+	left: 8px;
+	bottom: 8px;
+	width: 18px;
+	height: 18px;
+	border-radius: 4px;
+	background: var(--pad-color, #ff5722);
+	box-shadow: 0 0 16px rgba(255, 87, 34, 0.55);
+	opacity: 0.85;
+}
+
+.mpc-pad.active::after {
+	opacity: 1;
+	background: radial-gradient(circle at center, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+}
+
+.mpc-pad-editor {
+	grid-area: pad-editor;
+	background: rgba(12, 18, 30, 0.9);
+	border-radius: 16px;
+	padding: 20px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.35);
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+}
+
+.mpc-pad-editor header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.mpc-editor-actions {
+	display: flex;
+	gap: 12px;
+}
+
+.mpc-pad-details {
+	display: grid;
+	gap: 14px;
+}
+
+.mpc-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	font-size: 0.78rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.mpc-field input[type="text"],
+.mpc-field input[type="number"] {
+	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 10px;
+	padding: 8px 10px;
+	color: inherit;
+	font-size: 0.85rem;
+}
+
+.mpc-field input[type="range"] {
+	appearance: none;
+	height: 6px;
+	border-radius: 3px;
+	background: linear-gradient(90deg, #0a7bff, #17d1ff);
+	outline: none;
+}
+
+.mpc-field input[type="range"]::-webkit-slider-thumb {
+	appearance: none;
+	height: 16px;
+	width: 16px;
+	border-radius: 50%;
+	background: #ffffff;
+	border: 2px solid #0a7bff;
+	box-shadow: 0 0 12px rgba(23, 209, 255, 0.7);
+}
+
+.mpc-field.triple {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+}
+
+.mpc-sequencer {
+	grid-area: sequencer;
+	background: linear-gradient(180deg, rgba(10, 16, 24, 0.9), rgba(4, 8, 14, 0.95));
+	border-radius: 16px;
+	padding: 20px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.mpc-sequencer header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.mpc-step-headers,
+.mpc-track-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+	gap: 6px;
+}
+
+.mpc-step-header {
+	text-align: center;
+	font-size: 0.7rem;
+	padding: 6px 0;
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 8px;
+	color: rgba(255, 255, 255, 0.65);
+}
+
+.mpc-track-row {
+	display: grid;
+	grid-template-columns: 120px 1fr;
+	gap: 12px;
+	align-items: center;
+}
+
+.mpc-track-row.is-active .mpc-track-label {
+	border-color: rgba(23, 209, 255, 0.8);
+	box-shadow: 0 0 16px rgba(23, 209, 255, 0.45);
+}
+
+.mpc-track-row.is-active .mpc-track-grid {
+	box-shadow: inset 0 0 12px rgba(23, 209, 255, 0.25);
+}
+
+.mpc-track-label {
+	background: rgba(20, 28, 40, 0.9);
+	border-radius: 12px;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.mpc-track-label span {
+	font-size: 0.82rem;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.mpc-track-label input {
+	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 10px;
+	padding: 6px 8px;
+	color: inherit;
+}
+
+
+.mpc-step {
+	background: rgba(8, 12, 18, 0.8);
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 8px;
+	height: 32px;
+	cursor: pointer;
+	transition: background 0.08s ease, border-color 0.08s ease, box-shadow 0.08s ease;
+	box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.mpc-step:hover {
+	border-color: rgba(0, 180, 255, 0.4);
+	background: rgba(8, 40, 56, 0.9);
+}
+
+.mpc-step.is-active {
+	background: linear-gradient(180deg, #17d1ff 0%, #0a7bff 100%);
+	border-color: rgba(23, 209, 255, 0.8);
+	box-shadow: 0 0 12px rgba(23, 209, 255, 0.6);
+}
+
+.mpc-step.current {
+	box-shadow: 0 0 18px rgba(255, 233, 92, 0.75), inset 0 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.mpc-song {
+	grid-area: song;
+	background: rgba(8, 12, 20, 0.9);
+	border-radius: 16px;
+	padding: 20px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.mpc-song-form {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+}
+
+.mpc-song-form select,
+.mpc-song-form input {
+	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 10px;
+	color: inherit;
+	height: 36px;
+	padding: 0 10px;
+}
+
+.mpc-song-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 8px;
+}
+
+.mpc-song-list li {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	background: rgba(10, 22, 32, 0.8);
+	border: 1px solid rgba(255, 255, 255, 0.05);
+	border-radius: 12px;
+	padding: 10px 12px;
+	font-size: 0.85rem;
+}
+
+.mpc-song-list button {
+	background: rgba(255, 61, 104, 0.85);
+	border: none;
+	color: #fff;
+	border-radius: 8px;
+	width: 24px;
+	height: 24px;
+	font-weight: bold;
+	cursor: pointer;
+	transition: transform 0.1s ease;
+}
+
+.mpc-song-list button:hover {
+	transform: scale(1.05);
+}
+
+@media (max-width: 1280px) {
+	.mpc-container {
+		grid-template-columns: 1fr;
+	}
+
+	.mpc-container .mpc-main {
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			"transport"
+			"pads"
+			"pad-editor"
+			"sequencer"
+			"song";
+	}
+
+	.mpc-sidebar {
+		order: -1;
+	}
+}
+
+@media (max-width: 900px) {
+	.mpc-container .mpc-main {
+		padding: 18px;
+		gap: 18px;
+	}
+
+	.mpc-pad {
+		height: 90px;
+	}
+
+	.transport-settings {
+		flex-wrap: wrap;
+		gap: 12px;
+	}
+
+	.mpc-track-row {
+		grid-template-columns: 1fr;
+	}
+
+	.mpc-track-grid {
+		grid-template-columns: repeat(16, minmax(14px, 1fr));
+	}
+}
