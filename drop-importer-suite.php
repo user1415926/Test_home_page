@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Drop Importer Suite
- * Description: ??????????? CSV ? WooCommerce ???????? ? ????????????? ???????, ??????? AJAX-??????? ? ????????????.
+ * Description: Full CSV to WooCommerce importer with batched runner, logging, and CLI support.
  * Version: 1.0.0
  * Author: Generated Integration
  * Text Domain: drop-importer-suite
@@ -74,9 +74,78 @@ function dropi_default_options() {
     );
 }
 
+function dropi_column_aliases() {
+    return apply_filters(
+        'dropi_column_aliases',
+        array(
+            'group_by'        => array( 'product id', 'group id', 'parent id', 'id' ),
+            'title'           => array( 'product name', 'name', 'title' ),
+            'description'     => array( 'product description', 'description', 'long description', 'description html', 'full description' ),
+            'category'        => array( 'category name', 'categories', 'category', 'category path' ),
+            'images'          => array( 'images', 'image urls', 'image url', 'image', 'pictures' ),
+            'sku'             => array( 'product codes', 'sku', 'product sku', 'code' ),
+            'price'           => array( 'price', 'regular price', 'cost' ),
+            'stock'           => array( 'stock', 'quantity', 'qty', 'stock quantity' ),
+            'external_url'    => array( 'url', 'product url', 'external url', 'url link' ),
+            'parameter_name'  => array( 'parameter name', 'attribute name', 'option name', 'variant attribute' ),
+            'parameter_value' => array( 'parameter value name', 'attribute value', 'option value', 'variant value' ),
+            'variant_label'   => array( 'name in group', 'variant name', 'variation name', 'option label' ),
+        )
+    );
+}
+
+function dropi_aliases( $key, $primary = null ) {
+    $aliases = dropi_column_aliases();
+    $list    = array();
+    if ( null !== $primary ) {
+        $list[] = $primary;
+    }
+    if ( isset( $aliases[ $key ] ) ) {
+        foreach ( (array) $aliases[ $key ] as $alias ) {
+            $list[] = $alias;
+        }
+    }
+    return array_values( array_unique( $list ) );
+}
+
+function dropi_register_row( $row ) {
+    $lower                 = array_change_key_case( $row, CASE_LOWER );
+    $row['__dropi_lower'] = $lower;
+    return $row;
+}
+
+function dropi_get( $row, $keys, $default = '' ) {
+    if ( ! is_array( $row ) ) {
+        return $default;
+    }
+
+    $lower = isset( $row['__dropi_lower'] ) && is_array( $row['__dropi_lower'] )
+        ? $row['__dropi_lower']
+        : array_change_key_case( $row, CASE_LOWER );
+
+    if ( ! is_array( $keys ) ) {
+        $keys = array( $keys );
+    }
+
+    foreach ( $keys as $key ) {
+        if ( null === $key || '' === $key ) {
+            continue;
+        }
+        if ( isset( $row[ $key ] ) && '' !== $row[ $key ] ) {
+            return $row[ $key ];
+        }
+        $lower_key = strtolower( $key );
+        if ( isset( $lower[ $lower_key ] ) && '' !== $lower[ $lower_key ] ) {
+            return $lower[ $lower_key ];
+        }
+    }
+
+    return $default;
+}
+
 function dropi_require_woocommerce() {
     if ( ! function_exists( 'wc_get_product_id_by_sku' ) ) {
-        return new WP_Error( 'woocommerce_missing', __( 'WooCommerce ??????? ??????????. ?????????, ??? WooCommerce ???????.', 'drop-importer-suite' ) );
+        return new WP_Error( 'woocommerce_missing', __( 'WooCommerce functions are unavailable. Please ensure WooCommerce is active.', 'drop-importer-suite' ) );
     }
     return true;
 }
@@ -128,12 +197,17 @@ function dropi_prepare_group_key( $value, $row_index ) {
 
 function dropi_process_group( $group_key, $lines, $opts, &$report ) {
     $first = $lines[0];
-    $title = ! empty( $first['Product name'] ) ? $first['Product name'] : sprintf( 'Product %s', $group_key );
-    $description = $first['Product description'] ?? '';
+    $title = dropi_get( $first, dropi_aliases( 'title', 'Product name' ) );
+    if ( '' === $title ) {
+        $title = sprintf( 'Product %s', $group_key );
+    }
+
+    $description = dropi_get( $first, dropi_aliases( 'description', 'Product description' ) );
 
     $categories = array();
-    if ( ! empty( $first['Category name'] ) ) {
-        $parts = preg_split( '/[|,\/]+/', $first['Category name'] );
+    $category_raw = dropi_get( $first, dropi_aliases( 'category', 'Category name' ) );
+    if ( '' !== $category_raw ) {
+        $parts = preg_split( '/[|,\/]+/', $category_raw );
         foreach ( $parts as $part ) {
             $part = trim( $part );
             if ( '' !== $part ) {
@@ -144,10 +218,11 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
 
     $image_urls = array();
     foreach ( $lines as $line ) {
-        if ( empty( $line['Images'] ) ) {
+        $image_value = dropi_get( $line, dropi_aliases( 'images', 'Images' ) );
+        if ( '' === $image_value ) {
             continue;
         }
-        $pieces = preg_split( '/[,;]+/', $line['Images'] );
+        $pieces = preg_split( '/[,;]+/', $image_value );
         foreach ( $pieces as $piece ) {
             $piece = trim( $piece );
             if ( '' !== $piece ) {
@@ -158,7 +233,7 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
     $image_urls = array_values( $image_urls );
     $is_variable = count( $lines ) > 1;
 
-    $sku_source = isset( $first['Product codes'] ) ? trim( $first['Product codes'] ) : '';
+    $sku_source = trim( dropi_get( $first, dropi_aliases( 'sku', 'Product codes' ) ) );
     $existing_post_id = 0;
 
     if ( 'sku' === $opts['update_existing_by'] && '' !== $sku_source ) {
@@ -255,7 +330,7 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
         }
     }
 
-    $price = dropi_normalise_number( $first['Price'] ?? null );
+    $price = dropi_normalise_number( dropi_get( $first, dropi_aliases( 'price', 'Price' ) ) );
     if ( null !== $price ) {
         update_post_meta( $post_id, '_regular_price', $price );
         update_post_meta( $post_id, '_price', $price );
@@ -265,15 +340,17 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
         update_post_meta( $post_id, '_sku', sanitize_text_field( $sku_source ) );
     }
 
-    if ( isset( $first['Stock'] ) && '' !== $first['Stock'] ) {
-        $stock = intval( $first['Stock'] );
+    $stock_value = dropi_get( $first, dropi_aliases( 'stock', 'Stock' ) );
+    if ( '' !== $stock_value ) {
+        $stock = intval( $stock_value );
         update_post_meta( $post_id, '_manage_stock', 'yes' );
         update_post_meta( $post_id, '_stock', $stock );
         update_post_meta( $post_id, '_stock_status', ( $stock > 0 ) ? 'instock' : 'outofstock' );
     }
 
-    if ( ! empty( $first['URL'] ) ) {
-        update_post_meta( $post_id, '_product_url', esc_url_raw( $first['URL'] ) );
+    $external_url = dropi_get( $first, dropi_aliases( 'external_url', 'URL' ) );
+    if ( '' !== $external_url ) {
+        update_post_meta( $post_id, '_product_url', esc_url_raw( $external_url ) );
     }
 
     $result_summary = array(
@@ -302,14 +379,16 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
 
     $attributes_map = array();
     foreach ( $lines as $line ) {
-        if ( ! empty( $line['Parameter name'] ) && ! empty( $line['Parameter value name'] ) ) {
-            $attr_name  = trim( $line['Parameter name'] );
-            $attr_value = trim( $line['Parameter value name'] );
-        } elseif ( ! empty( $line['Name in group'] ) ) {
-            $attr_name  = 'Option';
-            $attr_value = trim( $line['Name in group'] );
-        } else {
-            continue;
+        $attr_name     = dropi_get( $line, dropi_aliases( 'parameter_name', 'Parameter name' ) );
+        $attr_value    = dropi_get( $line, dropi_aliases( 'parameter_value', 'Parameter value name' ) );
+        $variant_label = dropi_get( $line, dropi_aliases( 'variant_label', 'Name in group' ) );
+
+        if ( '' === $attr_name && '' !== $variant_label ) {
+            $attr_name = 'Option';
+        }
+
+        if ( '' !== $variant_label && '' === $attr_value ) {
+            $attr_value = $variant_label;
         }
 
         if ( '' === $attr_name || '' === $attr_value ) {
@@ -340,9 +419,10 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
     update_post_meta( $post_id, '_product_attributes', $wc_attributes );
 
     foreach ( $lines as $line ) {
+        $variation_label = dropi_get( $line, dropi_aliases( 'variant_label', 'Name in group' ) );
         $variation_title = $title;
-        if ( ! empty( $line['Name in group'] ) ) {
-            $variation_title .= ' ? ' . $line['Name in group'];
+        if ( '' !== $variation_label ) {
+            $variation_title .= ' - ' . $variation_label;
         }
 
         $variation_post = array(
@@ -358,18 +438,20 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
             continue;
         }
 
-        $price = dropi_normalise_number( $line['Price'] ?? null );
-        if ( null !== $price ) {
-            update_post_meta( $variation_id, '_regular_price', $price );
-            update_post_meta( $variation_id, '_price', $price );
+        $price_value = dropi_normalise_number( dropi_get( $line, dropi_aliases( 'price', 'Price' ) ) );
+        if ( null !== $price_value ) {
+            update_post_meta( $variation_id, '_regular_price', $price_value );
+            update_post_meta( $variation_id, '_price', $price_value );
         }
 
-        if ( ! empty( $line['Product codes'] ) ) {
-            update_post_meta( $variation_id, '_sku', sanitize_text_field( $line['Product codes'] ) );
+        $variation_sku = dropi_get( $line, dropi_aliases( 'sku', 'Product codes' ) );
+        if ( '' !== $variation_sku ) {
+            update_post_meta( $variation_id, '_sku', sanitize_text_field( $variation_sku ) );
         }
 
-        if ( isset( $line['Stock'] ) && '' !== $line['Stock'] ) {
-            $stock = intval( $line['Stock'] );
+        $variation_stock = dropi_get( $line, dropi_aliases( 'stock', 'Stock' ) );
+        if ( '' !== $variation_stock ) {
+            $stock = intval( $variation_stock );
             update_post_meta( $variation_id, '_manage_stock', 'yes' );
             update_post_meta( $variation_id, '_stock', $stock );
             update_post_meta( $variation_id, '_stock_status', ( $stock > 0 ) ? 'instock' : 'outofstock' );
@@ -377,11 +459,9 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
 
         foreach ( $attributes_map as $attr_name => $values ) {
             $taxonomy_key = wc_sanitize_taxonomy_name( $attr_name );
-            $value        = '';
-            if ( ! empty( $line['Parameter value name'] ) ) {
-                $value = $line['Parameter value name'];
-            } elseif ( ! empty( $line['Name in group'] ) ) {
-                $value = $line['Name in group'];
+            $value        = dropi_get( $line, dropi_aliases( 'parameter_value', 'Parameter value name' ) );
+            if ( '' === $value ) {
+                $value = $variation_label;
             }
 
             if ( '' !== $value ) {
@@ -389,13 +469,16 @@ function dropi_process_group( $group_key, $lines, $opts, &$report ) {
             }
         }
 
-        if ( ! $opts['skip_images'] && ! empty( $line['Images'] ) ) {
-            $parts = preg_split( '/[,;]+/', $line['Images'] );
-            $parts = array_filter( array_map( 'trim', $parts ) );
-            if ( ! empty( $parts ) ) {
-                $attachment_id = dropi_sideload_image_get_id( $parts[0], $variation_id );
-                if ( $attachment_id ) {
-                    update_post_meta( $variation_id, '_thumbnail_id', $attachment_id );
+        if ( ! $opts['skip_images'] ) {
+            $variation_images = dropi_get( $line, dropi_aliases( 'images', 'Images' ) );
+            if ( '' !== $variation_images ) {
+                $parts = preg_split( '/[,;]+/', $variation_images );
+                $parts = array_filter( array_map( 'trim', $parts ) );
+                if ( ! empty( $parts ) ) {
+                    $attachment_id = dropi_sideload_image_get_id( $parts[0], $variation_id );
+                    if ( $attachment_id ) {
+                        update_post_meta( $variation_id, '_thumbnail_id', $attachment_id );
+                    }
                 }
             }
         }
@@ -417,12 +500,12 @@ function dropi_process_csv_chunk( $csv_path, $args = array() ) {
     }
 
     if ( ! file_exists( $csv_path ) ) {
-        return new WP_Error( 'dropi_no_file', sprintf( __( 'CSV ???? ?? ??????: %s', 'drop-importer-suite' ), esc_html( $csv_path ) ) );
+        return new WP_Error( 'dropi_no_file', sprintf( __( 'CSV file not found: %s', 'drop-importer-suite' ), esc_html( $csv_path ) ) );
     }
 
     $fh = fopen( $csv_path, 'r' );
     if ( ! $fh ) {
-        return new WP_Error( 'dropi_cannot_open', __( '?? ??????? ??????? CSV ????.', 'drop-importer-suite' ) );
+        return new WP_Error( 'dropi_cannot_open', __( 'Unable to open the CSV file.', 'drop-importer-suite' ) );
     }
 
     $delimiter      = $opts['delimiter'];
@@ -441,7 +524,7 @@ function dropi_process_csv_chunk( $csv_path, $args = array() ) {
     $header_row = fgetcsv( $fh, 0, $delimiter );
     if ( false === $header_row ) {
         fclose( $fh );
-        return new WP_Error( 'dropi_empty', __( 'CSV ?? ???????? ??????????.', 'drop-importer-suite' ) );
+        return new WP_Error( 'dropi_empty', __( 'CSV file does not contain headers.', 'drop-importer-suite' ) );
     }
 
     $header_row[0] = preg_replace( '/^\xEF\xBB\xBF/', '', $header_row[0] );
@@ -501,7 +584,9 @@ function dropi_process_csv_chunk( $csv_path, $args = array() ) {
             $assoc[ $name ] = isset( $row[ $index ] ) ? trim( $row[ $index ] ) : '';
         }
 
-        $group_key = dropi_prepare_group_key( $assoc[ $group_by ] ?? '', $row_index );
+        $assoc = dropi_register_row( $assoc );
+        $group_value = dropi_get( $assoc, dropi_aliases( 'group_by', $group_by ) );
+        $group_key   = dropi_prepare_group_key( $group_value, $row_index );
 
         if ( null === $current_key ) {
             $current_key   = $group_key;
@@ -582,7 +667,7 @@ function dropi_render_admin_page() {
 
     if ( isset( $_POST['dropi_run'] ) ) {
         if ( ! check_admin_referer( 'dropi_run_action', 'dropi_run_nonce' ) ) {
-            $message = '<div class="notice notice-error"><p>' . esc_html__( 'Nonce ???????? ?? ????????.', 'drop-importer-suite' ) . '</p></div>';
+            $message = '<div class="notice notice-error"><p>' . esc_html__( 'Nonce check failed.', 'drop-importer-suite' ) . '</p></div>';
         } else {
             dropi_log( sprintf( 'Manual run start (offset=%d, limit=%d, dry=%d, skip_images=%d, csv=%s)', $offset, $limit, $dry ? 1 : 0, $skip_images ? 1 : 0, $csv ) );
 
@@ -597,7 +682,7 @@ function dropi_render_admin_page() {
                 $message = '<div class="notice notice-error"><p>' . esc_html( $result->get_error_message() ) . '</p></div>';
                 dropi_log( 'Manual run error: ' . $result->get_error_message() );
             } else {
-                $message  = '<div class="notice notice-success"><p>' . esc_html__( '?????? ????????. ?????? ????.', 'drop-importer-suite' ) . '</p></div>';
+                $message  = '<div class="notice notice-success"><p>' . esc_html__( 'Import complete. Summary below.', 'drop-importer-suite' ) . '</p></div>';
                 $message .= '<div style="background:#fff;border:1px solid #ddd;padding:10px;"><pre>' . esc_html( print_r( $result, true ) ) . '</pre></div>';
                 dropi_log( sprintf( 'Manual run success: processed=%d next=%s total=%d runtime=%.3fs', $result['processed_groups'], ( null === $result['next_offset'] ? 'null' : $result['next_offset'] ), $result['groups_total'], $result['runtime'] ) );
             }
@@ -606,7 +691,7 @@ function dropi_render_admin_page() {
 
     echo '<div class="wrap">';
     echo '<h1>' . esc_html__( 'Drop Importer Suite', 'drop-importer-suite' ) . '</h1>';
-    echo '<p>' . esc_html__( '??? ?????????? ?????? ??????????? ???????. ??????????? dry-run ???????, ????? ???????? ?????????? ??? ?????? ????????.', 'drop-importer-suite' ) . '</p>';
+    echo '<p>' . esc_html__( 'Import runs in batches for reliability. Start with a dry run, then enable the background runner for full sync.', 'drop-importer-suite' ) . '</p>';
     if ( $message ) {
         echo $message; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
     }
@@ -615,32 +700,32 @@ function dropi_render_admin_page() {
         <?php wp_nonce_field( 'dropi_run_action', 'dropi_run_nonce' ); ?>
         <table class="form-table">
             <tr>
-                <th scope="row"><label for="dropi_csv"><?php esc_html_e( 'CSV ????', 'drop-importer-suite' ); ?></label></th>
+                <th scope="row"><label for="dropi_csv"><?php esc_html_e( 'CSV path', 'drop-importer-suite' ); ?></label></th>
                 <td><input type="text" name="dropi_csv" id="dropi_csv" value="<?php echo esc_attr( $csv ); ?>" style="width:70%;"></td>
             </tr>
             <tr>
-                <th scope="row"><label for="dropi_offset"><?php esc_html_e( '????????? offset', 'drop-importer-suite' ); ?></label></th>
+                <th scope="row"><label for="dropi_offset"><?php esc_html_e( 'Starting offset', 'drop-importer-suite' ); ?></label></th>
                 <td><input type="number" name="dropi_offset" id="dropi_offset" value="<?php echo esc_attr( $offset ); ?>" min="0"></td>
             </tr>
             <tr>
-                <th scope="row"><label for="dropi_limit"><?php esc_html_e( '????? ?? ????', 'drop-importer-suite' ); ?></label></th>
-                <td><input type="number" name="dropi_limit" id="dropi_limit" value="<?php echo esc_attr( $limit ); ?>" min="1"> <span class="description"><?php esc_html_e( '????????????? 10?30.', 'drop-importer-suite' ); ?></span></td>
+                <th scope="row"><label for="dropi_limit"><?php esc_html_e( 'Groups per batch', 'drop-importer-suite' ); ?></label></th>
+                <td><input type="number" name="dropi_limit" id="dropi_limit" value="<?php echo esc_attr( $limit ); ?>" min="1"> <span class="description"><?php esc_html_e( 'Recommended 10-30.', 'drop-importer-suite' ); ?></span></td>
             </tr>
             <tr>
                 <th scope="row">Dry run</th>
-                <td><label><input type="checkbox" name="dropi_dry" value="1" <?php checked( $dry ); ?>> <?php esc_html_e( '?????? ??????, ??? ?????? ? ??', 'drop-importer-suite' ); ?></label></td>
+                <td><label><input type="checkbox" name="dropi_dry" value="1" <?php checked( $dry ); ?>> <?php esc_html_e( 'Enable dry run (no database changes).', 'drop-importer-suite' ); ?></label></td>
             </tr>
             <tr>
                 <th scope="row">Skip images</th>
-                <td><label><input type="checkbox" name="dropi_skip_images" value="1" <?php checked( $skip_images ); ?>> <?php esc_html_e( '?? ????????? ??????????? (?????????? ?????)', 'drop-importer-suite' ); ?></label></td>
+                <td><label><input type="checkbox" name="dropi_skip_images" value="1" <?php checked( $skip_images ); ?>> <?php esc_html_e( 'Skip image downloads (faster, safer).', 'drop-importer-suite' ); ?></label></td>
             </tr>
         </table>
-        <p class="submit"><input type="submit" class="button button-primary" name="dropi_run" value="<?php esc_attr_e( '????????? ?????', 'drop-importer-suite' ); ?>"></p>
+        <p class="submit"><input type="submit" class="button button-primary" name="dropi_run" value="<?php esc_attr_e( 'Run batch', 'drop-importer-suite' ); ?>"></p>
     </form>
 
     <div id="dropi_controls" style="background:#fff;padding:12px;border:1px solid #ddd;margin-bottom:20px;"></div>
 
-    <h2><?php esc_html_e( '??? (????????? 200 ?????)', 'drop-importer-suite' ); ?></h2>
+    <h2><?php esc_html_e( 'Log (last 200 lines)', 'drop-importer-suite' ); ?></h2>
     <div style="background:#fff;border:1px solid #ddd;padding:12px;">
         <pre style="max-height:360px;overflow:auto;white-space:pre-wrap;"><?php echo esc_html( dropi_tail_log( 200 ) ); ?></pre>
     </div>
@@ -777,7 +862,7 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
                 break;
             }
 
-            WP_CLI::log( sprintf( 'Processed %d groups (offset %d ? %s) runtime=%.3fs', $result['processed_groups'], $offset, ( null === $result['next_offset'] ? 'done' : $result['next_offset'] ), $result['runtime'] ) );
+            WP_CLI::log( sprintf( 'Processed %d groups (offset %d -> %s) runtime=%.3fs', $result['processed_groups'], $offset, ( null === $result['next_offset'] ? 'done' : $result['next_offset'] ), $result['runtime'] ) );
 
             if ( null === $result['next_offset'] || 0 === $result['processed_groups'] ) {
                 break;
