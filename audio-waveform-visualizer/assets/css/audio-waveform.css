@@ -1,0 +1,70 @@
+.awv-player {
+    border: 1px solid #dcdfe5;
+    border-radius: 6px;
+    padding: 16px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+    max-width: 720px;
+}
+
+.awv-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.awv-button.button[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.awv-wave-wrapper {
+    position: relative;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px;
+}
+
+.awv-waveform {
+    width: 100%;
+    overflow: hidden;
+}
+
+.awv-progress {
+    position: absolute;
+    inset: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(15, 23, 42, 0.18);
+    color: #ffffff;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-align: center;
+    border-radius: 4px;
+}
+
+.awv-progress[hidden] {
+    display: none;
+}
+
+.awv-file-info {
+    margin: 0 0 12px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.awv-region-info {
+    margin-top: 12px;
+    font-size: 0.95rem;
+    color: #475569;
+}
+
+.awv-instructions {
+    margin-top: 16px;
+    font-size: 0.9rem;
+    color: #64748b;
+    font-style: italic;
+}
