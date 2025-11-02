@@ -3,33 +3,38 @@
 
     const strings = (window.AWVSettings && window.AWVSettings.strings) || {};
 
-    const t = (key, fallback) => strings[key] || fallback;
+    const t = (key, fallback) => (strings[key] ? strings[key] : fallback);
 
     const formatTime = (seconds) => {
-        if (!Number.isFinite(seconds)) {
+        if (typeof seconds !== 'number' || !Number.isFinite(seconds)) {
             return '0:00';
         }
-        const total = Math.max(Number(seconds) || 0, 0);
+
+        const total = Math.max(seconds, 0);
         const minutes = Math.floor(total / 60);
         const secs = Math.round(total % 60).toString().padStart(2, '0');
+
         return `${minutes}:${secs}`;
     };
 
-    const parseNumber = (value, fallback = 0) => {
+    const parseNumber = (value, fallback) => {
         if (typeof value === 'number') {
             return Number.isFinite(value) ? value : fallback;
         }
+
         if (typeof value !== 'string') {
             return fallback;
         }
+
         const parsed = Number.parseFloat(value.replace(',', '.').trim());
         return Number.isFinite(parsed) ? parsed : fallback;
     };
 
-    const showTemporaryMessage = (element, message, duration = 2000) => {
+    const showTemporaryMessage = (element, message, duration) => {
         if (!element) {
             return;
         }
+
         element.hidden = false;
         element.textContent = message;
         window.setTimeout(() => {
@@ -40,12 +45,13 @@
 
     const generateId = (() => {
         let counter = 0;
-        return (prefix = 'cmd') => {
+        return (prefix) => {
             counter += 1;
             return `${prefix}-${Date.now()}-${counter}`;
         };
     })();
 
+    // ?????????? ????????? ?????? ??? ?????? ????????
     const initWorkspace = (workspace) => {
         const commands = [];
         const trackMap = new Map();
@@ -60,10 +66,11 @@
         const stopScenarioBtn = workspace.querySelector('.awv-stop-scenario');
         const clearScenarioBtn = workspace.querySelector('.awv-clear-commands');
 
-        const showStatus = (message, type = 'info') => {
+        const showStatus = (message, type) => {
             if (!statusLabel) {
                 return;
             }
+
             statusLabel.textContent = message;
             statusLabel.dataset.type = type;
             statusLabel.hidden = !message;
@@ -71,6 +78,7 @@
 
         const updateScenarioButtons = () => {
             const hasCommands = commands.length > 0;
+
             if (startScenarioBtn) {
                 startScenarioBtn.disabled = !hasCommands || scenarioPlaying;
             }
@@ -86,22 +94,29 @@
             if (!commandLog) {
                 return;
             }
+
             if (!commands.length) {
                 commandLog.value = t('commandTextPlaceholder', 'Add commands to populate the script.');
                 return;
             }
-            commandLog.value = commands
-                .map((cmd, index) => {
-                    const segment = `${formatTime(cmd.regionStart)}-${formatTime(cmd.regionEnd)}`;
-                    return `${index + 1}. ${cmd.name} | ${cmd.trackTitle} | ${segment} | t=${cmd.startOffset.toFixed(2)}s | x${cmd.speed.toFixed(2)}`;
-                })
-                .join('\n');
+
+            const rows = [];
+            for (let i = 0; i < commands.length; i += 1) {
+                const cmd = commands[i];
+                rows.push(
+                    `${i + 1}. ${cmd.name} | ${cmd.trackTitle} | ${formatTime(cmd.regionStart)}-${formatTime(cmd.regionEnd)} | ` +
+                        `t=${cmd.startOffset.toFixed(2)}s | x${cmd.speed.toFixed(2)}`,
+                );
+            }
+
+            commandLog.value = rows.join('\n');
         };
 
         const renderCommandTable = () => {
             if (!commandBody) {
                 return;
             }
+
             commandBody.innerHTML = '';
 
             if (!commands.length) {
@@ -170,7 +185,12 @@
 
         const addCommandInternal = (command) => {
             commands.push(command);
-            commands.sort((a, b) => a.startOffset - b.startOffset || a.createdAt - b.createdAt);
+            commands.sort((a, b) => {
+                if (a.startOffset !== b.startOffset) {
+                    return a.startOffset - b.startOffset;
+                }
+                return a.createdAt - b.createdAt;
+            });
             renderCommandTable();
         };
 
@@ -179,6 +199,7 @@
             if (index === -1) {
                 return;
             }
+
             commands.splice(index, 1);
             renderCommandTable();
             showStatus(t('commandRemoved', 'Command removed.'), 'info');
@@ -190,6 +211,7 @@
                 showStatus(t('noAudioLoaded', 'Load audio on this track first.'), 'warning');
                 return false;
             }
+
             const success = track.playSegment(command.regionStart, command.regionEnd, command.speed);
             if (!success) {
                 showStatus(t('errorPlayback', 'Unable to play the segment.'), 'error');
@@ -197,8 +219,8 @@
             return success;
         };
 
-        const stopScenarioInternal = (notify = true) => {
-            scenarioTimeouts.forEach((id) => window.clearTimeout(id));
+        const stopScenarioInternal = (notify) => {
+            scenarioTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
             scenarioTimeouts = [];
             scenarioPlaying = false;
             updateScenarioButtons();
@@ -218,7 +240,7 @@
             updateScenarioButtons();
             showStatus(t('scenarioStarted', 'Scenario started.'), 'info');
 
-            const sorted = [...commands].sort((a, b) => a.startOffset - b.startOffset);
+            const sorted = commands.slice().sort((a, b) => a.startOffset - b.startOffset);
 
             sorted.forEach((command) => {
                 const delay = Math.max(0, command.startOffset * 1000);
@@ -229,7 +251,8 @@
             });
 
             const last = sorted[sorted.length - 1];
-            const scenarioDuration = (last.startOffset + Math.max(0, last.regionEnd - last.regionStart) + 1) * 1000;
+            const lastDuration = Math.max(0, last.regionEnd - last.regionStart);
+            const scenarioDuration = (last.startOffset + lastDuration + 1) * 1000;
             const completionTimeout = window.setTimeout(() => {
                 scenarioPlaying = false;
                 updateScenarioButtons();
@@ -241,9 +264,11 @@
         if (startScenarioBtn) {
             startScenarioBtn.addEventListener('click', startScenarioInternal);
         }
+
         if (stopScenarioBtn) {
             stopScenarioBtn.addEventListener('click', () => stopScenarioInternal(true));
         }
+
         if (clearScenarioBtn) {
             clearScenarioBtn.addEventListener('click', () => {
                 if (!commands.length && !scenarioPlaying) {
@@ -262,14 +287,17 @@
                 if (!button) {
                     return;
                 }
-                const { commandAction, commandId } = button.dataset;
+
+                const commandId = button.dataset.commandId;
                 const command = commands.find((item) => item.id === commandId);
                 if (!command) {
                     return;
                 }
-                if (commandAction === 'play') {
+
+                if (button.dataset.commandAction === 'play') {
                     playCommandInternal(command);
-                } else if (commandAction === 'remove') {
+                }
+                if (button.dataset.commandAction === 'remove') {
                     removeCommandInternal(commandId);
                 }
             });
@@ -278,8 +306,8 @@
         const workspaceApi = {
             t,
             showStatus,
-            addCommand: (payload) => {
-                addCommandInternal(payload);
+            addCommand: (command) => {
+                addCommandInternal(command);
                 showStatus(t('commandAdded', 'Command added.'), 'success');
             },
             createCommand: (data) => {
@@ -295,21 +323,25 @@
             unregisterTrack: (trackId) => trackMap.delete(trackId),
         };
 
-        workspace.querySelectorAll('.awv-track').forEach((trackElement) => {
-            const track = initTrack(trackElement, workspaceApi);
+        const trackElements = workspace.querySelectorAll('.awv-track');
+        for (let i = 0; i < trackElements.length; i += 1) {
+            const track = initTrack(trackElements[i], workspaceApi);
             if (track) {
                 workspaceApi.registerTrack(track);
             }
-        });
+        }
 
         updateScenarioButtons();
         renderCommandTable();
     };
 
+    // ????????? ????? ??????? ? ????????, ???????????????, ???????
     const initTrack = (trackElement, workspaceApi) => {
-        const waveId = trackElement.dataset.waveId;
-        const trackId = trackElement.dataset.track || waveId || `${Date.now()}`;
-        const height = parseInt(trackElement.dataset.height || '', 10) || 160;
+        const waveId = trackElement.getAttribute('data-wave-id');
+        const trackAttr = trackElement.getAttribute('data-track');
+        const trackId = trackAttr || waveId || String(Date.now());
+        const heightAttr = trackElement.getAttribute('data-height') || '';
+        const height = Number.parseInt(heightAttr, 10) || 160;
 
         const selectButton = trackElement.querySelector('.awv-select');
         const uploadButton = trackElement.querySelector('.awv-upload');
@@ -325,7 +357,15 @@
         const fileInfo = trackElement.querySelector('.awv-file-info');
         const regionInfo = trackElement.querySelector('.awv-region-info');
         const regionLabel = trackElement.querySelector('.awv-region-label');
-        const trackTitle = trackElement.querySelector('.awv-track-title')?.textContent?.trim() || workspaceApi.t('trackLabel', 'Track %d').replace('%d', trackId);
+
+        let trackTitle = workspaceApi.t('trackLabel', 'Track %d').replace('%d', trackId);
+        const trackTitleElement = trackElement.querySelector('.awv-track-title');
+        if (trackTitleElement && typeof trackTitleElement.textContent === 'string') {
+            const text = trackTitleElement.textContent.replace(/\s+/g, ' ').trim();
+            if (text) {
+                trackTitle = text;
+            }
+        }
 
         let wave = null;
         let mediaFrame = null;
@@ -333,10 +373,11 @@
         let isReady = false;
         let audioTitle = '';
 
-        const setLoading = (loading, message = '') => {
+        const setLoading = (loading, message) => {
             if (!progressLabel) {
                 return;
             }
+
             if (loading) {
                 progressLabel.hidden = false;
                 progressLabel.textContent = message || workspaceApi.t('loading', 'Loading...');
@@ -347,27 +388,34 @@
         };
 
         const getRegionsList = () => {
-            if (!wave) {
+            if (!wave || typeof wave.getActivePlugins !== 'function') {
                 return [];
             }
-            const regionsPlugin = wave.getActivePlugins()?.regions;
-            if (!regionsPlugin) {
+            const plugins = wave.getActivePlugins();
+            if (!plugins || !plugins.regions || typeof plugins.regions.getRegions !== 'function') {
                 return [];
             }
-            const regions = regionsPlugin.getRegions();
-            if (regions instanceof Map) {
-                return Array.from(regions.values());
+            const rawRegions = plugins.regions.getRegions();
+            if (rawRegions instanceof Map) {
+                return Array.from(rawRegions.values());
             }
-            if (Array.isArray(regions)) {
-                return regions;
+            if (Array.isArray(rawRegions)) {
+                return rawRegions;
             }
-            return Object.values(regions || {});
+            if (rawRegions && typeof rawRegions === 'object') {
+                const list = [];
+                Object.keys(rawRegions).forEach((key) => {
+                    list.push(rawRegions[key]);
+                });
+                return list;
+            }
+            return [];
         };
 
         const updateControls = () => {
-            const hasAudio = !!wave;
-            const hasRegion = !!currentRegion;
-            const isPlaying = Boolean(wave && typeof wave.isPlaying === 'function' && wave.isPlaying());
+            const hasAudio = Boolean(wave);
+            const hasRegion = Boolean(currentRegion);
+            const isPlaying = wave && typeof wave.isPlaying === 'function' && wave.isPlaying();
 
             if (playButton) {
                 playButton.disabled = !isReady;
@@ -398,7 +446,7 @@
                 return;
             }
 
-            regionLabel.textContent = `${formatTime(currentRegion.start ?? 0)} - ${formatTime(currentRegion.end ?? 0)}`;
+            regionLabel.textContent = `${formatTime(currentRegion.start || 0)} - ${formatTime(currentRegion.end || 0)}`;
             regionInfo.hidden = false;
         };
 
@@ -418,17 +466,21 @@
         };
 
         const clearRegions = () => {
-            getRegionsList().forEach((region) => region.remove());
+            const regions = getRegionsList();
+            for (let i = 0; i < regions.length; i += 1) {
+                if (regions[i] && typeof regions[i].remove === 'function') {
+                    regions[i].remove();
+                }
+            }
             setActiveRegion(null);
             updateControls();
         };
 
         const destroyWave = () => {
-            if (wave) {
+            if (wave && typeof wave.destroy === 'function') {
                 wave.destroy();
-                wave = null;
             }
-
+            wave = null;
             isReady = false;
             setActiveRegion(null);
             setLoading(false);
@@ -494,6 +546,15 @@
         };
 
         const createWave = () => {
+            if (!waveContainer || typeof WaveSurfer === 'undefined' || !WaveSurfer) {
+                workspaceApi.showStatus('WaveSurfer is not available.', 'error');
+                return;
+            }
+
+            const regionsPlugin = typeof WaveSurfer.Regions === 'function'
+                ? [WaveSurfer.Regions.create({ dragSelection: { slop: 5 } })]
+                : [];
+
             wave = WaveSurfer.create({
                 container: waveContainer,
                 height,
@@ -504,30 +565,36 @@
                 barGap: 1,
                 normalize: true,
                 responsive: true,
-                plugins: [
-                    WaveSurfer.Regions.create({ dragSelection: { slop: 5 } }),
-                ],
+                plugins: regionsPlugin,
             });
 
             attachWaveEvents();
         };
 
-        const loadAudio = ({ url, file, label }) => {
+        const loadAudio = (source) => {
             if (!waveContainer) {
                 return;
             }
 
             destroyWave();
             createWave();
-            setLoading(true);
-
-            if (file) {
-                wave.loadBlob(file);
-            } else if (url) {
-                wave.load(url);
+            if (!wave) {
+                return;
             }
 
-            audioTitle = label || (file && file.name) || (url ? url.split('/').pop() : '') || '';
+            setLoading(true);
+
+            if (source.file && typeof wave.loadBlob === 'function') {
+                wave.loadBlob(source.file);
+            } else if (source.url) {
+                wave.load(source.url);
+            } else {
+                setLoading(false);
+                workspaceApi.showStatus('No audio source provided.', 'error');
+                return;
+            }
+
+            audioTitle = source.label || (source.file && source.file.name) || (source.url ? source.url.split('/').pop() : '') || '';
             if (fileInfo) {
                 fileInfo.hidden = false;
                 fileInfo.textContent = audioTitle;
@@ -551,12 +618,19 @@
                         });
 
                         mediaFrame.on('select', () => {
-                            const attachment = mediaFrame.state().get('selection').first();
-                            if (!attachment) {
+                            const selection = mediaFrame.state().get('selection');
+                            if (!selection) {
+                                return;
+                            }
+                            const attachment = selection.first();
+                            if (!attachment || typeof attachment.toJSON !== 'function') {
                                 return;
                             }
                             const data = attachment.toJSON();
-                            loadAudio({ url: data.url, label: data.filename || data.title });
+                            loadAudio({
+                                url: data && data.url,
+                                label: data && (data.filename || data.title),
+                            });
                         });
                     }
 
@@ -573,11 +647,13 @@
 
         if (fileInput) {
             fileInput.addEventListener('change', () => {
-                const file = fileInput.files && fileInput.files[0];
+                if (!fileInput.files || !fileInput.files.length) {
+                    return;
+                }
+                const file = fileInput.files[0];
                 if (!file) {
                     return;
                 }
-
                 loadAudio({ file, label: file.name });
                 fileInput.value = '';
             });
@@ -619,7 +695,7 @@
                 if (!wave) {
                     return;
                 }
-                if (currentRegion) {
+                if (currentRegion && typeof currentRegion.remove === 'function') {
                     currentRegion.remove();
                 } else {
                     clearRegions();
@@ -654,8 +730,8 @@
                     trackId,
                     trackTitle,
                     audioTitle,
-                    regionStart: currentRegion.start ?? 0,
-                    regionEnd: currentRegion.end ?? 0,
+                    regionStart: currentRegion.start || 0,
+                    regionEnd: currentRegion.end || 0,
                     startOffset,
                     speed,
                 });
@@ -677,12 +753,13 @@
             id: trackId,
             label: trackTitle,
             isReady: () => Boolean(wave) && isReady,
-            playSegment: (start, end, speed = 1) => {
+            playSegment: (start, end, speed) => {
                 if (!wave || !isReady) {
                     return false;
                 }
+                const playbackRate = speed && speed > 0 ? speed : 1;
                 try {
-                    wave.setPlaybackRate(speed > 0 ? speed : 1);
+                    wave.setPlaybackRate(playbackRate);
                     wave.play(start, end);
                     return true;
                 } catch (error) {
@@ -695,9 +772,8 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         const workspaces = document.querySelectorAll('.awv-workspace');
-        if (!workspaces.length) {
-            return;
+        for (let i = 0; i < workspaces.length; i += 1) {
+            initWorkspace(workspaces[i]);
         }
-        workspaces.forEach((workspace) => initWorkspace(workspace));
     });
 })();
