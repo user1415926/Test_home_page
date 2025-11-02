@@ -3,7 +3,7 @@
 
     const strings = (window.AWVSettings && window.AWVSettings.strings) || {};
 
-    const t = (key, fallback) => (strings[key] ? strings[key] : fallback);
+    const t = (key, fallback) => (Object.prototype.hasOwnProperty.call(strings, key) ? strings[key] : fallback);
 
     const formatTime = (seconds) => {
         if (typeof seconds !== 'number' || !Number.isFinite(seconds)) {
@@ -51,7 +51,7 @@
         };
     })();
 
-    // ?????????? ????????? ?????? ??? ?????? ????????
+    // ?????????? ????????? ? ??????? ?????? ??? ?????? ????????
     const initWorkspace = (workspace) => {
         const commands = [];
         const trackMap = new Map();
@@ -335,7 +335,7 @@
         renderCommandTable();
     };
 
-    // ????????? ????? ??????? ? ????????, ???????????????, ???????
+    // ????????? ????? ???????: ????????, ????????, ???????, ???????
     const initTrack = (trackElement, workspaceApi) => {
         const waveId = trackElement.getAttribute('data-wave-id');
         const trackAttr = trackElement.getAttribute('data-track');
@@ -399,14 +399,14 @@
         };
 
         const getRegionsList = () => {
-            if (!wave || typeof wave.getActivePlugins !== 'function') {
+            if (!wave) {
                 return [];
             }
-            const plugins = wave.getActivePlugins();
-            if (!plugins || !plugins.regions || typeof plugins.regions.getRegions !== 'function') {
+            const regionsPlugin = (wave.plugins && wave.plugins.regions) || (wave.getActivePlugins && wave.getActivePlugins().regions);
+            if (!regionsPlugin || typeof regionsPlugin.getRegions !== 'function') {
                 return [];
             }
-            const rawRegions = plugins.regions.getRegions();
+            const rawRegions = regionsPlugin.getRegions();
             if (rawRegions instanceof Map) {
                 return Array.from(rawRegions.values());
             }
@@ -414,11 +414,7 @@
                 return rawRegions;
             }
             if (rawRegions && typeof rawRegions === 'object') {
-                const list = [];
-                Object.keys(rawRegions).forEach((key) => {
-                    list.push(rawRegions[key]);
-                });
-                return list;
+                return Object.keys(rawRegions).map((key) => rawRegions[key]);
             }
             return [];
         };
@@ -503,6 +499,12 @@
             }
         };
 
+        const applyZoom = () => {
+            if (wave && typeof wave.zoom === 'function') {
+                wave.zoom(trackZoom);
+            }
+        };
+
         const attachWaveEvents = () => {
             if (!wave) {
                 return;
@@ -512,6 +514,7 @@
                 isReady = true;
                 setLoading(false);
                 wave.setPlaybackRate(trackSpeed > 0 ? trackSpeed : 1);
+                applyZoom();
                 updateControls();
             });
 
@@ -522,11 +525,11 @@
 
             wave.on('play', updateControls);
             wave.on('pause', () => {
-                wave.setPlaybackRate(1);
+                wave.setPlaybackRate(trackSpeed > 0 ? trackSpeed : 1);
                 updateControls();
             });
             wave.on('finish', () => {
-                wave.setPlaybackRate(1);
+                wave.setPlaybackRate(trackSpeed > 0 ? trackSpeed : 1);
                 updateControls();
             });
 
@@ -557,19 +560,13 @@
             });
         };
 
-        const applyZoom = () => {
-            if (wave && typeof wave.zoom === 'function') {
-                wave.zoom(trackZoom);
-            }
-        };
-
         const createWave = () => {
             if (!waveContainer || typeof WaveSurfer === 'undefined' || !WaveSurfer) {
                 workspaceApi.showStatus('WaveSurfer is not available.', 'error');
                 return;
             }
 
-            const regionsPlugin = typeof WaveSurfer.Regions === 'function'
+            const regionsPlugin = (typeof WaveSurfer.Regions === 'function')
                 ? [WaveSurfer.Regions.create({ dragSelection: { slop: 5 } })]
                 : [];
 
@@ -741,13 +738,13 @@
                 }
                 const startOffset = Math.max(0, parseNumber(startPrompt, 0));
 
-                const speedPrompt = window.prompt(workspaceApi.t('promptSpeed', 'Enter playback speed (for example 1 or 0.75)'), '1');
+                const speedPrompt = window.prompt(workspaceApi.t('promptSpeed', 'Enter playback speed (for example 1 or 0.75)'), trackSpeed.toString());
                 if (speedPrompt === null) {
                     return;
                 }
-                let speed = parseNumber(speedPrompt, 1);
-                if (speed <= 0) {
-                    speed = 1;
+                let customSpeed = parseNumber(speedPrompt, trackSpeed);
+                if (!Number.isFinite(customSpeed) || customSpeed <= 0) {
+                    customSpeed = trackSpeed;
                 }
 
                 const command = workspaceApi.createCommand({
@@ -757,7 +754,7 @@
                     regionStart: currentRegion.start || 0,
                     regionEnd: currentRegion.end || 0,
                     startOffset,
-                    speed,
+                    speed: customSpeed,
                 });
 
                 if (!command) {
@@ -814,9 +811,9 @@
                 if (!wave || !isReady) {
                     return false;
                 }
-                const playbackRate = speed && speed > 0 ? speed : 1;
+                const playbackRate = speed && speed > 0 ? speed : trackSpeed;
                 try {
-                    wave.setPlaybackRate(playbackRate);
+                    wave.setPlaybackRate(playbackRate > 0 ? playbackRate : 1);
                     wave.play(start, end);
                     return true;
                 } catch (error) {
