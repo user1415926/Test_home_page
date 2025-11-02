@@ -30,17 +30,17 @@
         return Number.isFinite(parsed) ? parsed : fallback;
     };
 
-    const showTemporaryMessage = (element, message, duration = 2000) => {
+    const showTemporaryMessage = (element, message, duration) => {
         if (!element) {
             return;
         }
-
+        const timeout = Number.isFinite(duration) ? duration : 2000;
         element.hidden = false;
         element.textContent = message;
         window.setTimeout(() => {
             element.textContent = '';
             element.hidden = true;
-        }, duration);
+        }, timeout);
     };
 
     const generateId = (() => {
@@ -51,7 +51,6 @@
         };
     })();
 
-    // ?????????? ????????? ? ??????? ?????? ??? ?????? ????????
     const initWorkspace = (workspace) => {
         const commands = [];
         const trackMap = new Map();
@@ -70,7 +69,6 @@
             if (!statusLabel) {
                 return;
             }
-
             statusLabel.textContent = message;
             statusLabel.dataset.type = type;
             statusLabel.hidden = !message;
@@ -78,7 +76,6 @@
 
         const updateScenarioButtons = () => {
             const hasCommands = commands.length > 0;
-
             if (startScenarioBtn) {
                 startScenarioBtn.disabled = !hasCommands || scenarioPlaying;
             }
@@ -94,12 +91,10 @@
             if (!commandLog) {
                 return;
             }
-
             if (!commands.length) {
                 commandLog.value = t('commandTextPlaceholder', 'Add commands to populate the script.');
                 return;
             }
-
             const rows = [];
             for (let i = 0; i < commands.length; i += 1) {
                 const cmd = commands[i];
@@ -108,7 +103,6 @@
                         `t=${cmd.startOffset.toFixed(2)}s | x${cmd.speed.toFixed(2)}`,
                 );
             }
-
             commandLog.value = rows.join('\n');
         };
 
@@ -116,7 +110,6 @@
             if (!commandBody) {
                 return;
             }
-
             commandBody.innerHTML = '';
 
             if (!commands.length) {
@@ -199,7 +192,6 @@
             if (index === -1) {
                 return;
             }
-
             commands.splice(index, 1);
             renderCommandTable();
             showStatus(t('commandRemoved', 'Command removed.'), 'info');
@@ -211,7 +203,6 @@
                 showStatus(t('noAudioLoaded', 'Load audio on this track first.'), 'warning');
                 return false;
             }
-
             const success = track.playSegment(command.regionStart, command.regionEnd, command.speed);
             if (!success) {
                 showStatus(t('errorPlayback', 'Unable to play the segment.'), 'error');
@@ -241,7 +232,6 @@
             showStatus(t('scenarioStarted', 'Scenario started.'), 'info');
 
             const sorted = commands.slice().sort((a, b) => a.startOffset - b.startOffset);
-
             sorted.forEach((command) => {
                 const delay = Math.max(0, command.startOffset * 1000);
                 const timeoutId = window.setTimeout(() => {
@@ -250,9 +240,9 @@
                 scenarioTimeouts.push(timeoutId);
             });
 
-            const last = sorted[sorted.length - 1];
-            const lastDuration = Math.max(0, last.regionEnd - last.regionStart);
-            const scenarioDuration = (last.startOffset + lastDuration + 1) * 1000;
+            const lastCommand = sorted[sorted.length - 1];
+            const segmentDuration = Math.max(0, lastCommand.regionEnd - lastCommand.regionStart);
+            const scenarioDuration = (lastCommand.startOffset + segmentDuration + 1) * 1000;
             const completionTimeout = window.setTimeout(() => {
                 scenarioPlaying = false;
                 updateScenarioButtons();
@@ -287,13 +277,11 @@
                 if (!button) {
                     return;
                 }
-
                 const commandId = button.dataset.commandId;
                 const command = commands.find((item) => item.id === commandId);
                 if (!command) {
                     return;
                 }
-
                 if (button.dataset.commandAction === 'play') {
                     playCommandInternal(command);
                 }
@@ -335,7 +323,7 @@
         renderCommandTable();
     };
 
-    // ????????? ????? ???????: ????????, ????????, ???????, ???????
+    // ????????? ????? ???????
     const initTrack = (trackElement, workspaceApi) => {
         const waveId = trackElement.getAttribute('data-wave-id');
         const trackAttr = trackElement.getAttribute('data-track');
@@ -375,6 +363,7 @@
         let currentRegion = null;
         let isReady = false;
         let audioTitle = '';
+        let objectUrl = null;
         let trackSpeed = speedInput ? parseNumber(speedInput.value, 1) : 1;
         if (!Number.isFinite(trackSpeed) || trackSpeed <= 0) {
             trackSpeed = 1;
@@ -388,7 +377,6 @@
             if (!progressLabel) {
                 return;
             }
-
             if (loading) {
                 progressLabel.hidden = false;
                 progressLabel.textContent = message || workspaceApi.t('loading', 'Loading...');
@@ -402,19 +390,21 @@
             if (!wave) {
                 return [];
             }
-            const regionsPlugin = (wave.plugins && wave.plugins.regions) || (wave.getActivePlugins && wave.getActivePlugins().regions);
-            if (!regionsPlugin || typeof regionsPlugin.getRegions !== 'function') {
-                return [];
+            if (wave.regions && wave.regions.list) {
+                return Object.keys(wave.regions.list).map((key) => wave.regions.list[key]);
             }
-            const rawRegions = regionsPlugin.getRegions();
-            if (rawRegions instanceof Map) {
-                return Array.from(rawRegions.values());
-            }
-            if (Array.isArray(rawRegions)) {
-                return rawRegions;
-            }
-            if (rawRegions && typeof rawRegions === 'object') {
-                return Object.keys(rawRegions).map((key) => rawRegions[key]);
+            const plugins = wave.getActivePlugins && wave.getActivePlugins();
+            if (plugins && plugins.regions && typeof plugins.regions.getRegions === 'function') {
+                const raw = plugins.regions.getRegions();
+                if (Array.isArray(raw)) {
+                    return raw;
+                }
+                if (raw instanceof Map) {
+                    return Array.from(raw.values());
+                }
+                if (raw && typeof raw === 'object') {
+                    return Object.keys(raw).map((key) => raw[key]);
+                }
             }
             return [];
         };
@@ -446,13 +436,11 @@
             if (!regionInfo || !regionLabel) {
                 return;
             }
-
             if (!currentRegion) {
                 regionInfo.hidden = true;
                 regionLabel.textContent = '';
                 return;
             }
-
             regionLabel.textContent = `${formatTime(currentRegion.start || 0)} - ${formatTime(currentRegion.end || 0)}`;
             regionInfo.hidden = false;
         };
@@ -461,22 +449,28 @@
             if (currentRegion && currentRegion.element) {
                 currentRegion.element.classList.remove('awv-region-active');
             }
-
             currentRegion = region || null;
-
             if (currentRegion && currentRegion.element) {
                 currentRegion.element.classList.add('awv-region-active');
             }
-
             updateRegionInfo();
             updateControls();
         };
 
         const clearRegions = () => {
-            const regions = getRegionsList();
-            for (let i = 0; i < regions.length; i += 1) {
-                if (regions[i] && typeof regions[i].remove === 'function') {
-                    regions[i].remove();
+            if (!wave) {
+                return;
+            }
+            if (typeof wave.clearRegions === 'function') {
+                wave.clearRegions();
+            } else if (wave.regions && typeof wave.regions.clear === 'function') {
+                wave.regions.clear();
+            } else {
+                const list = getRegionsList();
+                for (let i = 0; i < list.length; i += 1) {
+                    if (list[i] && typeof list[i].remove === 'function') {
+                        list[i].remove();
+                    }
                 }
             }
             setActiveRegion(null);
@@ -497,6 +491,10 @@
                 fileInfo.hidden = true;
                 fileInfo.textContent = '';
             }
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+                objectUrl = null;
+            }
         };
 
         const applyZoom = () => {
@@ -505,7 +503,7 @@
             }
         };
 
-        const attachWaveEvents = () => {
+        const attachWaveEvents = (regionsFactoryUsed) => {
             if (!wave) {
                 return;
             }
@@ -538,9 +536,6 @@
                     return;
                 }
                 setActiveRegion(region);
-                if (typeof region.on === 'function') {
-                    region.on('click', () => setActiveRegion(region));
-                }
             };
 
             wave.on('region-created', regionHandler);
@@ -553,6 +548,10 @@
                 updateControls();
             });
 
+            if (regionsFactoryUsed && wave.regions && typeof wave.regions.enableDragSelection === 'function') {
+                wave.regions.enableDragSelection({ color: 'rgba(59, 92, 184, 0.3)' });
+            }
+
             wave.on('error', (error) => {
                 console.error(error);
                 setLoading(false);
@@ -561,16 +560,21 @@
         };
 
         const createWave = () => {
-            if (!waveContainer || typeof WaveSurfer === 'undefined' || !WaveSurfer) {
+            if (!waveContainer || typeof window.WaveSurfer === 'undefined') {
                 workspaceApi.showStatus('WaveSurfer is not available.', 'error');
-                return;
+                return false;
             }
 
-            const regionsPlugin = (typeof WaveSurfer.Regions === 'function')
-                ? [WaveSurfer.Regions.create({ dragSelection: { slop: 5 } })]
-                : [];
+            const RegionsFactory = (window.WaveSurfer && window.WaveSurfer.regions)
+                ? window.WaveSurfer.regions
+                : window.WaveSurferRegions;
 
-            wave = WaveSurfer.create({
+            const plugins = [];
+            if (RegionsFactory && typeof RegionsFactory.create === 'function') {
+                plugins.push(RegionsFactory.create({ dragSelection: true }));
+            }
+
+            wave = window.WaveSurfer.create({
                 container: waveContainer,
                 height,
                 waveColor: '#9dbbf1',
@@ -580,11 +584,12 @@
                 barGap: 1,
                 normalize: true,
                 responsive: true,
-                plugins: regionsPlugin,
+                plugins,
             });
 
-            attachWaveEvents();
+            attachWaveEvents(plugins.length > 0);
             window.setTimeout(applyZoom, 0);
+            return Boolean(wave);
         };
 
         const loadAudio = (source) => {
@@ -593,15 +598,19 @@
             }
 
             destroyWave();
-            createWave();
-            if (!wave) {
+            if (!createWave()) {
                 return;
             }
 
             setLoading(true);
 
-            if (source.file && typeof wave.loadBlob === 'function') {
-                wave.loadBlob(source.file);
+            if (source.file) {
+                if (typeof wave.loadBlob === 'function') {
+                    wave.loadBlob(source.file);
+                } else {
+                    objectUrl = URL.createObjectURL(source.file);
+                    wave.load(objectUrl);
+                }
             } else if (source.url) {
                 wave.load(source.url);
             } else {
@@ -624,9 +633,9 @@
             selectButton.addEventListener('click', (event) => {
                 event.preventDefault();
 
-                if (window.wp && wp.media) {
+                if (window.wp && window.wp.media) {
                     if (!mediaFrame) {
-                        mediaFrame = wp.media({
+                        mediaFrame = window.wp.media({
                             title: workspaceApi.t('selectAudio', 'Select audio'),
                             library: { type: ['audio'] },
                             multiple: false,
@@ -699,7 +708,7 @@
         if (playRegionButton) {
             playRegionButton.addEventListener('click', () => {
                 if (!wave || !currentRegion) {
-                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2500);
+                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2000);
                     return;
                 }
                 wave.setPlaybackRate(trackSpeed > 0 ? trackSpeed : 1);
@@ -728,7 +737,7 @@
         if (addCommandButton) {
             addCommandButton.addEventListener('click', () => {
                 if (!currentRegion) {
-                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2500);
+                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2000);
                     return;
                 }
 

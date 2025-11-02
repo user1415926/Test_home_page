@@ -47,17 +47,17 @@ final class Audio_Waveform_Visualizer {
 
         wp_register_script(
             self::SLUG . '-wavesurfer',
-            'https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js',
+            'https://unpkg.com/wavesurfer.js@6/dist/wavesurfer.min.js',
             [],
-            '7.7.6',
+            '6.7.4',
             true
         );
 
         wp_register_script(
             self::SLUG . '-wavesurfer-regions',
-            'https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js',
+            'https://unpkg.com/wavesurfer.js@6/dist/plugin/wavesurfer.regions.min.js',
             [self::SLUG . '-wavesurfer'],
-            '7.7.6',
+            '6.7.4',
             true
         );
 
