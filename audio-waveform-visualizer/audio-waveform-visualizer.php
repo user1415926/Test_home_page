@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Audio Waveform Visualizer
- * Description: ??????? ??? ??????????? ?????? ????????????, ????????? ???????? ? ?????????? ????????? ???????????????.
+ * Description: Shortcode for eight audio tracks with waveform regions and playback scripting.
  * Version: 1.0.0
  * Author: GPT-5 Codex
  * Text Domain: audio-waveform-visualizer
@@ -74,45 +74,45 @@ final class Audio_Waveform_Visualizer {
             'AWVSettings',
             [
                 'strings' => [
-                    'selectAudio'            => __('??????? ?????', 'audio-waveform-visualizer'),
-                    'uploadFile'            => __('????????? ????', 'audio-waveform-visualizer'),
-                    'changeAudio'           => __('???????? ?????', 'audio-waveform-visualizer'),
-                    'play'                  => __('?????????????', 'audio-waveform-visualizer'),
-                    'pause'                 => __('?????', 'audio-waveform-visualizer'),
-                    'playRegion'            => __('????????????? ?????????', 'audio-waveform-visualizer'),
-                    'stop'                  => __('??????????', 'audio-waveform-visualizer'),
-                    'clearRegion'           => __('???????? ?????????', 'audio-waveform-visualizer'),
-                    'loading'               => __('????????...', 'audio-waveform-visualizer'),
-                    'noRegion'              => __('??????? ???????? ??????? ?? ???????.', 'audio-waveform-visualizer'),
-                    'instructions'          => __('????????? ???????? ?? ?????, ????? ???????? ?????????.', 'audio-waveform-visualizer'),
-                    'addCommand'            => __('???????? ???????', 'audio-waveform-visualizer'),
-                    'commandPanelTitle'     => __('?????? ??????', 'audio-waveform-visualizer'),
-                    'commandPanelHelp'      => __('???????? ??????? ? ???????? ??????? ? ???????? ?????? ? ????????? ???????????????.', 'audio-waveform-visualizer'),
-                    'commandTableTitle'     => __('???????', 'audio-waveform-visualizer'),
-                    'commandTableTrack'     => __('???????', 'audio-waveform-visualizer'),
-                    'commandTableSegment'   => __('???????', 'audio-waveform-visualizer'),
-                    'commandTableSpeed'     => __('????????', 'audio-waveform-visualizer'),
-                    'commandTableStart'     => __('?????, ?', 'audio-waveform-visualizer'),
-                    'commandTableActions'   => __('????????', 'audio-waveform-visualizer'),
-                    'commandPlay'           => __('?????????', 'audio-waveform-visualizer'),
-                    'commandRemove'         => __('???????', 'audio-waveform-visualizer'),
-                    'scenarioPlay'          => __('????????????? ????????', 'audio-waveform-visualizer'),
-                    'scenarioStop'          => __('?????????? ????????', 'audio-waveform-visualizer'),
-                    'scenarioClear'         => __('???????? ????????', 'audio-waveform-visualizer'),
-                    'scenarioEmpty'         => __('?????? ?????? ????.', 'audio-waveform-visualizer'),
-                    'promptStart'           => __('??????? ????? ??????? (? ????????)', 'audio-waveform-visualizer'),
-                    'promptSpeed'           => __('??????? ???????? ??????????????? (????????, 1 ??? 0.75)', 'audio-waveform-visualizer'),
-                    'commandTextHeader'     => __('????? ??????', 'audio-waveform-visualizer'),
-                    'commandTextPlaceholder'=> __('???????? ???????, ????? ??????? ????????.', 'audio-waveform-visualizer'),
-                    'noAudioLoaded'         => __('??????? ????????? ????? ??? ???? ???????.', 'audio-waveform-visualizer'),
-                    'commandAdded'          => __('??????? ?????????.', 'audio-waveform-visualizer'),
-                    'commandRemoved'        => __('??????? ???????.', 'audio-waveform-visualizer'),
-                    'commandFailed'         => __('?? ??????? ???????? ???????.', 'audio-waveform-visualizer'),
-                    'scenarioStarted'       => __('???????? ???????.', 'audio-waveform-visualizer'),
-                    'scenarioStopped'       => __('???????? ??????????.', 'audio-waveform-visualizer'),
-                    'scenarioCompleted'     => __('???????? ????????.', 'audio-waveform-visualizer'),
-                    'errorPlayback'         => __('?? ??????? ????????????? ???????.', 'audio-waveform-visualizer'),
-                    'trackLabel'            => __('??????? %d', 'audio-waveform-visualizer'),
+                    'selectAudio'            => __('Select audio', 'audio-waveform-visualizer'),
+                    'uploadFile'            => __('Upload file', 'audio-waveform-visualizer'),
+                    'changeAudio'           => __('Replace audio', 'audio-waveform-visualizer'),
+                    'play'                  => __('Play', 'audio-waveform-visualizer'),
+                    'pause'                 => __('Pause', 'audio-waveform-visualizer'),
+                    'playRegion'            => __('Play region', 'audio-waveform-visualizer'),
+                    'stop'                  => __('Stop', 'audio-waveform-visualizer'),
+                    'clearRegion'           => __('Clear regions', 'audio-waveform-visualizer'),
+                    'loading'               => __('Loading...', 'audio-waveform-visualizer'),
+                    'noRegion'              => __('Create a region on the track first.', 'audio-waveform-visualizer'),
+                    'instructions'          => __('Drag on the waveform to create a region.', 'audio-waveform-visualizer'),
+                    'addCommand'            => __('Add command', 'audio-waveform-visualizer'),
+                    'commandPanelTitle'     => __('Command panel', 'audio-waveform-visualizer'),
+                    'commandPanelHelp'      => __('Select a region and add a command with start time and playback speed.', 'audio-waveform-visualizer'),
+                    'commandTableTitle'     => __('Command', 'audio-waveform-visualizer'),
+                    'commandTableTrack'     => __('Track', 'audio-waveform-visualizer'),
+                    'commandTableSegment'   => __('Segment', 'audio-waveform-visualizer'),
+                    'commandTableSpeed'     => __('Speed', 'audio-waveform-visualizer'),
+                    'commandTableStart'     => __('Start (s)', 'audio-waveform-visualizer'),
+                    'commandTableActions'   => __('Actions', 'audio-waveform-visualizer'),
+                    'commandPlay'           => __('Play', 'audio-waveform-visualizer'),
+                    'commandRemove'         => __('Remove', 'audio-waveform-visualizer'),
+                    'scenarioPlay'          => __('Run scenario', 'audio-waveform-visualizer'),
+                    'scenarioStop'          => __('Stop scenario', 'audio-waveform-visualizer'),
+                    'scenarioClear'         => __('Clear scenario', 'audio-waveform-visualizer'),
+                    'scenarioEmpty'         => __('No commands yet.', 'audio-waveform-visualizer'),
+                    'promptStart'           => __('Enter start offset (seconds)', 'audio-waveform-visualizer'),
+                    'promptSpeed'           => __('Enter playback speed (for example 1 or 0.75)', 'audio-waveform-visualizer'),
+                    'commandTextHeader'     => __('Command script', 'audio-waveform-visualizer'),
+                    'commandTextPlaceholder'=> __('Add commands to populate the script.', 'audio-waveform-visualizer'),
+                    'noAudioLoaded'         => __('Load audio on this track first.', 'audio-waveform-visualizer'),
+                    'commandAdded'          => __('Command added.', 'audio-waveform-visualizer'),
+                    'commandRemoved'        => __('Command removed.', 'audio-waveform-visualizer'),
+                    'commandFailed'         => __('Failed to add command.', 'audio-waveform-visualizer'),
+                    'scenarioStarted'       => __('Scenario started.', 'audio-waveform-visualizer'),
+                    'scenarioStopped'       => __('Scenario stopped.', 'audio-waveform-visualizer'),
+                    'scenarioCompleted'     => __('Scenario completed.', 'audio-waveform-visualizer'),
+                    'errorPlayback'         => __('Unable to play the segment.', 'audio-waveform-visualizer'),
+                    'trackLabel'            => __('Track %d', 'audio-waveform-visualizer'),
                 ],
             ]
         );
@@ -148,33 +148,33 @@ final class Audio_Waveform_Visualizer {
                     <div class="awv-track" data-track="<?php echo esc_attr($i); ?>" data-wave-id="<?php echo esc_attr($track_id); ?>" data-height="<?php echo esc_attr($height); ?>">
                         <div class="awv-track-header">
                             <span class="awv-track-title">
-                                <?php echo esc_html(sprintf(__('??????? %d', 'audio-waveform-visualizer'), $i)); ?>
+                                <?php echo esc_html(sprintf(__('Track %d', 'audio-waveform-visualizer'), $i)); ?>
                             </span>
                             <div class="awv-track-buttons">
                                 <button type="button" class="button awv-button awv-select" aria-controls="<?php echo esc_attr($track_id); ?>">
-                                    <?php esc_html_e('??????? ?????', 'audio-waveform-visualizer'); ?>
+                                    <?php esc_html_e('Select audio', 'audio-waveform-visualizer'); ?>
                                 </button>
                                 <button type="button" class="button awv-button awv-upload">
-                                    <?php esc_html_e('????????? ????', 'audio-waveform-visualizer'); ?>
+                                    <?php esc_html_e('Upload file', 'audio-waveform-visualizer'); ?>
                                 </button>
                                 <input type="file" class="awv-file-input" accept="audio/*" hidden>
                             </div>
                         </div>
                         <div class="awv-track-controls">
                             <button type="button" class="button awv-button awv-play" disabled>
-                                <?php esc_html_e('?????????????', 'audio-waveform-visualizer'); ?>
+                                <?php esc_html_e('Play', 'audio-waveform-visualizer'); ?>
                             </button>
                             <button type="button" class="button awv-button awv-stop" disabled>
-                                <?php esc_html_e('??????????', 'audio-waveform-visualizer'); ?>
+                                <?php esc_html_e('Stop', 'audio-waveform-visualizer'); ?>
                             </button>
                             <button type="button" class="button awv-button awv-play-region" disabled>
-                                <?php esc_html_e('????????????? ?????????', 'audio-waveform-visualizer'); ?>
+                                <?php esc_html_e('Play region', 'audio-waveform-visualizer'); ?>
                             </button>
                             <button type="button" class="button awv-button awv-clear-region" disabled>
-                                <?php esc_html_e('???????? ?????????', 'audio-waveform-visualizer'); ?>
+                                <?php esc_html_e('Clear regions', 'audio-waveform-visualizer'); ?>
                             </button>
                             <button type="button" class="button awv-button awv-add-command" disabled>
-                                <?php esc_html_e('???????? ???????', 'audio-waveform-visualizer'); ?>
+                                <?php esc_html_e('Add command', 'audio-waveform-visualizer'); ?>
                             </button>
                         </div>
                         <div class="awv-file-info" hidden></div>
@@ -186,54 +186,54 @@ final class Audio_Waveform_Visualizer {
                             <span class="awv-region-label"></span>
                         </div>
                         <p class="awv-instructions">
-                            <?php esc_html_e('????????? ???????? ?? ?????, ????? ???????? ?????????.', 'audio-waveform-visualizer'); ?>
+                            <?php esc_html_e('Drag on the waveform to create a region.', 'audio-waveform-visualizer'); ?>
                         </p>
                     </div>
                 <?php endfor; ?>
             </div>
             <div class="awv-command-panel">
                 <div class="awv-command-header">
-                    <h3 class="awv-command-title"><?php esc_html_e('?????? ??????', 'audio-waveform-visualizer'); ?></h3>
+                    <h3 class="awv-command-title"><?php esc_html_e('Command panel', 'audio-waveform-visualizer'); ?></h3>
                     <div class="awv-command-actions">
                         <button type="button" class="button button-primary awv-start-scenario" disabled>
-                            <?php esc_html_e('????????????? ????????', 'audio-waveform-visualizer'); ?>
+                            <?php esc_html_e('Run scenario', 'audio-waveform-visualizer'); ?>
                         </button>
                         <button type="button" class="button awv-stop-scenario" disabled>
-                            <?php esc_html_e('?????????? ????????', 'audio-waveform-visualizer'); ?>
+                            <?php esc_html_e('Stop scenario', 'audio-waveform-visualizer'); ?>
                         </button>
                         <button type="button" class="button awv-clear-commands" disabled>
-                            <?php esc_html_e('???????? ????????', 'audio-waveform-visualizer'); ?>
+                            <?php esc_html_e('Clear scenario', 'audio-waveform-visualizer'); ?>
                         </button>
                     </div>
                 </div>
                 <p class="awv-command-instructions">
-                    <?php esc_html_e('???????? ??????? ?? ???????, ????? ???????? ??????? ? ???????? ?????? ? ?????????.', 'audio-waveform-visualizer'); ?>
+                    <?php esc_html_e('Select a region on any track, then add a command with start time and playback speed.', 'audio-waveform-visualizer'); ?>
                 </p>
                 <div class="awv-command-status" hidden></div>
                 <div class="awv-command-table-wrapper">
                     <table class="awv-command-table">
                         <thead>
                             <tr>
-                                <th><?php esc_html_e('???????', 'audio-waveform-visualizer'); ?></th>
-                                <th><?php esc_html_e('???????', 'audio-waveform-visualizer'); ?></th>
-                                <th><?php esc_html_e('???????', 'audio-waveform-visualizer'); ?></th>
-                                <th><?php esc_html_e('????????', 'audio-waveform-visualizer'); ?></th>
-                                <th><?php esc_html_e('?????, ?', 'audio-waveform-visualizer'); ?></th>
-                                <th><?php esc_html_e('????????', 'audio-waveform-visualizer'); ?></th>
+                                <th><?php esc_html_e('Command', 'audio-waveform-visualizer'); ?></th>
+                                <th><?php esc_html_e('Track', 'audio-waveform-visualizer'); ?></th>
+                                <th><?php esc_html_e('Segment', 'audio-waveform-visualizer'); ?></th>
+                                <th><?php esc_html_e('Speed', 'audio-waveform-visualizer'); ?></th>
+                                <th><?php esc_html_e('Start (s)', 'audio-waveform-visualizer'); ?></th>
+                                <th><?php esc_html_e('Actions', 'audio-waveform-visualizer'); ?></th>
                             </tr>
                         </thead>
                         <tbody class="awv-command-body">
                             <tr class="awv-command-empty">
-                                <td colspan="6"><?php esc_html_e('?????? ?????? ????.', 'audio-waveform-visualizer'); ?></td>
+                                <td colspan="6"><?php esc_html_e('No commands yet.', 'audio-waveform-visualizer'); ?></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="awv-command-text">
                     <label for="<?php echo esc_attr($instance_id); ?>-command-text">
-                        <?php esc_html_e('????? ??????', 'audio-waveform-visualizer'); ?>
+                        <?php esc_html_e('Command script', 'audio-waveform-visualizer'); ?>
                     </label>
-                    <textarea id="<?php echo esc_attr($instance_id); ?>-command-text" class="awv-command-log" rows="6" readonly><?php esc_html_e('???????? ???????, ????? ??????? ????????.', 'audio-waveform-visualizer'); ?></textarea>
+                    <textarea id="<?php echo esc_attr($instance_id); ?>-command-text" class="awv-command-log" rows="6" readonly><?php esc_html_e('Add commands to populate the script.', 'audio-waveform-visualizer'); ?></textarea>
                 </div>
             </div>
         </div>

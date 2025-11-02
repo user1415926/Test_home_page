@@ -1,4 +1,6 @@
 (function () {
+    'use strict';
+
     const strings = (window.AWVSettings && window.AWVSettings.strings) || {};
 
     const t = (key, fallback) => strings[key] || fallback;
@@ -7,13 +9,9 @@
         if (!Number.isFinite(seconds)) {
             return '0:00';
         }
-
-        const totalSeconds = Math.max(Number(seconds) || 0, 0);
-        const minutes = Math.floor(totalSeconds / 60);
-        const secs = Math.round(totalSeconds % 60)
-            .toString()
-            .padStart(2, '0');
-
+        const total = Math.max(Number(seconds) || 0, 0);
+        const minutes = Math.floor(total / 60);
+        const secs = Math.round(total % 60).toString().padStart(2, '0');
         return `${minutes}:${secs}`;
     };
 
@@ -21,13 +19,10 @@
         if (typeof value === 'number') {
             return Number.isFinite(value) ? value : fallback;
         }
-
         if (typeof value !== 'string') {
             return fallback;
         }
-
-        const normalized = value.replace(',', '.').trim();
-        const parsed = Number.parseFloat(normalized);
+        const parsed = Number.parseFloat(value.replace(',', '.').trim());
         return Number.isFinite(parsed) ? parsed : fallback;
     };
 
@@ -35,7 +30,6 @@
         if (!element) {
             return;
         }
-
         element.hidden = false;
         element.textContent = message;
         window.setTimeout(() => {
@@ -62,15 +56,14 @@
         const commandBody = workspace.querySelector('.awv-command-body');
         const commandLog = workspace.querySelector('.awv-command-log');
         const statusLabel = workspace.querySelector('.awv-command-status');
-        const playScenarioBtn = workspace.querySelector('.awv-start-scenario');
+        const startScenarioBtn = workspace.querySelector('.awv-start-scenario');
         const stopScenarioBtn = workspace.querySelector('.awv-stop-scenario');
-        const clearCommandsBtn = workspace.querySelector('.awv-clear-commands');
+        const clearScenarioBtn = workspace.querySelector('.awv-clear-commands');
 
         const showStatus = (message, type = 'info') => {
             if (!statusLabel) {
                 return;
             }
-
             statusLabel.textContent = message;
             statusLabel.dataset.type = type;
             statusLabel.hidden = !message;
@@ -78,15 +71,14 @@
 
         const updateScenarioButtons = () => {
             const hasCommands = commands.length > 0;
-
-            if (playScenarioBtn) {
-                playScenarioBtn.disabled = !hasCommands || scenarioPlaying;
+            if (startScenarioBtn) {
+                startScenarioBtn.disabled = !hasCommands || scenarioPlaying;
             }
             if (stopScenarioBtn) {
                 stopScenarioBtn.disabled = !scenarioPlaying;
             }
-            if (clearCommandsBtn) {
-                clearCommandsBtn.disabled = !hasCommands && !scenarioPlaying;
+            if (clearScenarioBtn) {
+                clearScenarioBtn.disabled = !hasCommands && !scenarioPlaying;
             }
         };
 
@@ -94,75 +86,70 @@
             if (!commandLog) {
                 return;
             }
-
             if (!commands.length) {
-                commandLog.value = t('commandTextPlaceholder', '???????? ???????, ????? ??????? ????????.');
+                commandLog.value = t('commandTextPlaceholder', 'Add commands to populate the script.');
                 return;
             }
-
-            const lines = commands.map((command, index) => {
-                const segment = `${formatTime(command.regionStart)}-${formatTime(command.regionEnd)}`;
-                const start = command.startOffset.toFixed(2);
-                const speed = command.speed.toFixed(2);
-                return `${index + 1}. ${command.name} | ${command.trackTitle} | ${segment} | t=${start}s | x${speed}`;
-            });
-
-            commandLog.value = lines.join('\n');
+            commandLog.value = commands
+                .map((cmd, index) => {
+                    const segment = `${formatTime(cmd.regionStart)}-${formatTime(cmd.regionEnd)}`;
+                    return `${index + 1}. ${cmd.name} | ${cmd.trackTitle} | ${segment} | t=${cmd.startOffset.toFixed(2)}s | x${cmd.speed.toFixed(2)}`;
+                })
+                .join('\n');
         };
 
         const renderCommandTable = () => {
             if (!commandBody) {
                 return;
             }
-
             commandBody.innerHTML = '';
 
             if (!commands.length) {
-                const emptyRow = document.createElement('tr');
-                emptyRow.className = 'awv-command-empty';
+                const row = document.createElement('tr');
+                row.className = 'awv-command-empty';
                 const cell = document.createElement('td');
                 cell.colSpan = 6;
-                cell.textContent = t('scenarioEmpty', '?????? ?????? ????.');
-                emptyRow.appendChild(cell);
-                commandBody.appendChild(emptyRow);
+                cell.textContent = t('scenarioEmpty', 'No commands yet.');
+                row.appendChild(cell);
+                commandBody.appendChild(row);
                 renderCommandLog();
                 updateScenarioButtons();
                 return;
             }
 
-            commands.forEach((command) => {
+            commands.forEach((cmd) => {
                 const row = document.createElement('tr');
-                row.dataset.commandId = command.id;
+                row.dataset.commandId = cmd.id;
 
                 const nameCell = document.createElement('td');
-                nameCell.textContent = command.name;
+                nameCell.textContent = cmd.name;
 
                 const trackCell = document.createElement('td');
-                trackCell.textContent = command.trackTitle;
+                trackCell.textContent = cmd.trackTitle;
 
                 const segmentCell = document.createElement('td');
-                segmentCell.textContent = `${formatTime(command.regionStart)} - ${formatTime(command.regionEnd)}`;
+                segmentCell.textContent = `${formatTime(cmd.regionStart)} - ${formatTime(cmd.regionEnd)}`;
 
                 const speedCell = document.createElement('td');
-                speedCell.textContent = command.speed.toFixed(2);
+                speedCell.textContent = cmd.speed.toFixed(2);
 
                 const startCell = document.createElement('td');
-                startCell.textContent = command.startOffset.toFixed(2);
+                startCell.textContent = cmd.startOffset.toFixed(2);
 
                 const actionsCell = document.createElement('td');
                 const playButton = document.createElement('button');
                 playButton.type = 'button';
                 playButton.className = 'button awv-command-play';
                 playButton.dataset.commandAction = 'play';
-                playButton.dataset.commandId = command.id;
-                playButton.textContent = t('commandPlay', '?????????');
+                playButton.dataset.commandId = cmd.id;
+                playButton.textContent = t('commandPlay', 'Play');
 
                 const removeButton = document.createElement('button');
                 removeButton.type = 'button';
                 removeButton.className = 'button awv-command-remove';
                 removeButton.dataset.commandAction = 'remove';
-                removeButton.dataset.commandId = command.id;
-                removeButton.textContent = t('commandRemove', '???????');
+                removeButton.dataset.commandId = cmd.id;
+                removeButton.textContent = t('commandRemove', 'Remove');
 
                 actionsCell.appendChild(playButton);
                 actionsCell.appendChild(removeButton);
@@ -192,22 +179,20 @@
             if (index === -1) {
                 return;
             }
-
             commands.splice(index, 1);
             renderCommandTable();
-            showStatus(t('commandRemoved', '??????? ???????.'), 'info');
+            showStatus(t('commandRemoved', 'Command removed.'), 'info');
         };
 
         const playCommandInternal = (command) => {
             const track = trackMap.get(command.trackId);
             if (!track || !track.isReady()) {
-                showStatus(t('noAudioLoaded', '??????? ????????? ????? ??? ???? ???????.'), 'warning');
+                showStatus(t('noAudioLoaded', 'Load audio on this track first.'), 'warning');
                 return false;
             }
-
             const success = track.playSegment(command.regionStart, command.regionEnd, command.speed);
             if (!success) {
-                showStatus(t('errorPlayback', '?? ??????? ????????????? ???????.'), 'error');
+                showStatus(t('errorPlayback', 'Unable to play the segment.'), 'error');
             }
             return success;
         };
@@ -218,20 +203,20 @@
             scenarioPlaying = false;
             updateScenarioButtons();
             if (notify) {
-                showStatus(t('scenarioStopped', '???????? ??????????.'), 'info');
+                showStatus(t('scenarioStopped', 'Scenario stopped.'), 'info');
             }
         };
 
         const startScenarioInternal = () => {
             if (!commands.length) {
-                showStatus(t('scenarioEmpty', '?????? ?????? ????.'), 'warning');
+                showStatus(t('scenarioEmpty', 'No commands yet.'), 'warning');
                 return;
             }
 
             stopScenarioInternal(false);
             scenarioPlaying = true;
             updateScenarioButtons();
-            showStatus(t('scenarioStarted', '???????? ???????.'), 'info');
+            showStatus(t('scenarioStarted', 'Scenario started.'), 'info');
 
             const sorted = [...commands].sort((a, b) => a.startOffset - b.startOffset);
 
@@ -248,47 +233,40 @@
             const completionTimeout = window.setTimeout(() => {
                 scenarioPlaying = false;
                 updateScenarioButtons();
-                showStatus(t('scenarioCompleted', '???????? ????????.'), 'success');
+                showStatus(t('scenarioCompleted', 'Scenario completed.'), 'success');
             }, scenarioDuration);
             scenarioTimeouts.push(completionTimeout);
         };
 
-        if (playScenarioBtn) {
-            playScenarioBtn.addEventListener('click', startScenarioInternal);
+        if (startScenarioBtn) {
+            startScenarioBtn.addEventListener('click', startScenarioInternal);
         }
         if (stopScenarioBtn) {
             stopScenarioBtn.addEventListener('click', () => stopScenarioInternal(true));
         }
-        if (clearCommandsBtn) {
-            clearCommandsBtn.addEventListener('click', () => {
+        if (clearScenarioBtn) {
+            clearScenarioBtn.addEventListener('click', () => {
                 if (!commands.length && !scenarioPlaying) {
                     return;
                 }
                 stopScenarioInternal(false);
                 commands.length = 0;
                 renderCommandTable();
-                showStatus(t('scenarioStopped', '???????? ??????????.'), 'info');
+                showStatus(t('scenarioStopped', 'Scenario stopped.'), 'info');
             });
         }
 
         if (commandBody) {
             commandBody.addEventListener('click', (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) {
-                    return;
-                }
-
-                const button = target.closest('button[data-command-action]');
+                const button = event.target.closest('button[data-command-action]');
                 if (!button) {
                     return;
                 }
-
                 const { commandAction, commandId } = button.dataset;
                 const command = commands.find((item) => item.id === commandId);
                 if (!command) {
                     return;
                 }
-
                 if (commandAction === 'play') {
                     playCommandInternal(command);
                 } else if (commandAction === 'remove') {
@@ -302,13 +280,13 @@
             showStatus,
             addCommand: (payload) => {
                 addCommandInternal(payload);
-                showStatus(t('commandAdded', '??????? ?????????.'), 'success');
+                showStatus(t('commandAdded', 'Command added.'), 'success');
             },
             createCommand: (data) => {
                 commandCounter += 1;
                 return {
                     id: generateId('cmd'),
-                    name: `${t('commandTableTitle', '???????')} ${commandCounter}`,
+                    name: `${t('commandTableTitle', 'Command')} ${commandCounter}`,
                     createdAt: Date.now(),
                     ...data,
                 };
@@ -347,7 +325,7 @@
         const fileInfo = trackElement.querySelector('.awv-file-info');
         const regionInfo = trackElement.querySelector('.awv-region-info');
         const regionLabel = trackElement.querySelector('.awv-region-label');
-        const trackTitle = trackElement.querySelector('.awv-track-title')?.textContent?.trim() || workspaceApi.t('trackLabel', '??????? %d').replace('%d', trackId);
+        const trackTitle = trackElement.querySelector('.awv-track-title')?.textContent?.trim() || workspaceApi.t('trackLabel', 'Track %d').replace('%d', trackId);
 
         let wave = null;
         let mediaFrame = null;
@@ -359,10 +337,9 @@
             if (!progressLabel) {
                 return;
             }
-
             if (loading) {
                 progressLabel.hidden = false;
-                progressLabel.textContent = message || workspaceApi.t('loading', '????????...');
+                progressLabel.textContent = message || workspaceApi.t('loading', 'Loading...');
             } else {
                 progressLabel.hidden = true;
                 progressLabel.textContent = '';
@@ -394,7 +371,7 @@
 
             if (playButton) {
                 playButton.disabled = !isReady;
-                playButton.textContent = workspaceApi.t(isPlaying ? 'pause' : 'play', isPlaying ? '?????' : '?????????????');
+                playButton.textContent = workspaceApi.t(isPlaying ? 'pause' : 'play', isPlaying ? 'Pause' : 'Play');
             }
             if (stopButton) {
                 stopButton.disabled = !hasAudio;
@@ -475,7 +452,7 @@
             });
 
             wave.on('loading', (progress) => {
-                const message = `${workspaceApi.t('loading', '????????...')} ${Math.round(progress)}%`;
+                const message = `${workspaceApi.t('loading', 'Loading...')} ${Math.round(progress)}%`;
                 setLoading(true, message);
             });
 
@@ -512,7 +489,7 @@
             wave.on('error', (error) => {
                 console.error(error);
                 setLoading(false);
-                workspaceApi.showStatus(workspaceApi.t('errorPlayback', '?? ??????? ????????????? ???????.'), 'error');
+                workspaceApi.showStatus(workspaceApi.t('errorPlayback', 'Unable to play the segment.'), 'error');
             });
         };
 
@@ -528,9 +505,7 @@
                 normalize: true,
                 responsive: true,
                 plugins: [
-                    WaveSurfer.Regions.create({
-                        dragSelection: { slop: 5 },
-                    }),
+                    WaveSurfer.Regions.create({ dragSelection: { slop: 5 } }),
                 ],
             });
 
@@ -552,13 +527,13 @@
                 wave.load(url);
             }
 
-            audioTitle = label || (file?.name) || (url ? url.split('/').pop() : '') || '';
+            audioTitle = label || (file && file.name) || (url ? url.split('/').pop() : '') || '';
             if (fileInfo) {
                 fileInfo.hidden = false;
                 fileInfo.textContent = audioTitle;
             }
             if (selectButton) {
-                selectButton.textContent = workspaceApi.t('changeAudio', '???????? ?????');
+                selectButton.textContent = workspaceApi.t('changeAudio', 'Replace audio');
             }
         };
 
@@ -569,10 +544,10 @@
                 if (window.wp && wp.media) {
                     if (!mediaFrame) {
                         mediaFrame = wp.media({
-                            title: workspaceApi.t('selectAudio', '??????? ?????'),
+                            title: workspaceApi.t('selectAudio', 'Select audio'),
                             library: { type: ['audio'] },
                             multiple: false,
-                            button: { text: workspaceApi.t('selectAudio', '??????? ?????') },
+                            button: { text: workspaceApi.t('selectAudio', 'Select audio') },
                         });
 
                         mediaFrame.on('select', () => {
@@ -580,7 +555,6 @@
                             if (!attachment) {
                                 return;
                             }
-
                             const data = attachment.toJSON();
                             loadAudio({ url: data.url, label: data.filename || data.title });
                         });
@@ -632,7 +606,7 @@
         if (playRegionButton) {
             playRegionButton.addEventListener('click', () => {
                 if (!wave || !currentRegion) {
-                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', '??????? ???????? ??????? ?? ???????.'), 2500);
+                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2500);
                     return;
                 }
                 wave.setPlaybackRate(1);
@@ -657,17 +631,17 @@
         if (addCommandButton) {
             addCommandButton.addEventListener('click', () => {
                 if (!currentRegion) {
-                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', '??????? ???????? ??????? ?? ???????.'), 2500);
+                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2500);
                     return;
                 }
 
-                const startPrompt = window.prompt(workspaceApi.t('promptStart', '??????? ????? ??????? (? ????????)'), '0');
+                const startPrompt = window.prompt(workspaceApi.t('promptStart', 'Enter start offset (seconds)'), '0');
                 if (startPrompt === null) {
                     return;
                 }
                 const startOffset = Math.max(0, parseNumber(startPrompt, 0));
 
-                const speedPrompt = window.prompt(workspaceApi.t('promptSpeed', '??????? ???????? ??????????????? (????????, 1 ??? 0.75)'), '1');
+                const speedPrompt = window.prompt(workspaceApi.t('promptSpeed', 'Enter playback speed (for example 1 or 0.75)'), '1');
                 if (speedPrompt === null) {
                     return;
                 }
@@ -687,7 +661,7 @@
                 });
 
                 if (!command) {
-                    workspaceApi.showStatus(workspaceApi.t('commandFailed', '?? ??????? ???????? ???????.'), 'error');
+                    workspaceApi.showStatus(workspaceApi.t('commandFailed', 'Failed to add command.'), 'error');
                     return;
                 }
 
@@ -695,13 +669,9 @@
             });
         }
 
-        const init = () => {
-            updateControls();
-            setLoading(false);
-            setActiveRegion(null);
-        };
-
-        init();
+        updateControls();
+        setLoading(false);
+        setActiveRegion(null);
 
         return {
             id: trackId,
@@ -728,7 +698,6 @@
         if (!workspaces.length) {
             return;
         }
-
         workspaces.forEach((workspace) => initWorkspace(workspace));
     });
 })();
