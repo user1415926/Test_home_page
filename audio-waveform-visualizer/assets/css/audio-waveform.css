@@ -33,6 +33,16 @@
     gap: 12px;
 }
 
+.awv-track-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.awv-track-buttons .button {
+    white-space: nowrap;
+}
+
 .awv-track-title {
     font-weight: 700;
     color: #1f2937;

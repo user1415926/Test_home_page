@@ -1,6 +1,5 @@
 (function () {
-    const settings = window.AWVSettings || {};
-    const strings = settings.strings || {};
+    const strings = (window.AWVSettings && window.AWVSettings.strings) || {};
 
     const t = (key, fallback) => strings[key] || fallback;
 
@@ -77,7 +76,7 @@
             statusLabel.hidden = !message;
         };
 
-        const updateActionButtons = () => {
+        const updateScenarioButtons = () => {
             const hasCommands = commands.length > 0;
 
             if (playScenarioBtn) {
@@ -97,7 +96,7 @@
             }
 
             if (!commands.length) {
-                commandLog.value = t('commandTextPlaceholder', 'Add commands to populate the script.');
+                commandLog.value = t('commandTextPlaceholder', '???????? ???????, ????? ??????? ????????.');
                 return;
             }
 
@@ -123,11 +122,11 @@
                 emptyRow.className = 'awv-command-empty';
                 const cell = document.createElement('td');
                 cell.colSpan = 6;
-                cell.textContent = t('scenarioEmpty', 'No commands yet.');
+                cell.textContent = t('scenarioEmpty', '?????? ?????? ????.');
                 emptyRow.appendChild(cell);
                 commandBody.appendChild(emptyRow);
                 renderCommandLog();
-                updateActionButtons();
+                updateScenarioButtons();
                 return;
             }
 
@@ -156,14 +155,14 @@
                 playButton.className = 'button awv-command-play';
                 playButton.dataset.commandAction = 'play';
                 playButton.dataset.commandId = command.id;
-                playButton.textContent = t('commandPlay', 'Play');
+                playButton.textContent = t('commandPlay', '?????????');
 
                 const removeButton = document.createElement('button');
                 removeButton.type = 'button';
                 removeButton.className = 'button awv-command-remove';
                 removeButton.dataset.commandAction = 'remove';
                 removeButton.dataset.commandId = command.id;
-                removeButton.textContent = t('commandRemove', 'Remove');
+                removeButton.textContent = t('commandRemove', '???????');
 
                 actionsCell.appendChild(playButton);
                 actionsCell.appendChild(removeButton);
@@ -179,7 +178,7 @@
             });
 
             renderCommandLog();
-            updateActionButtons();
+            updateScenarioButtons();
         };
 
         const addCommandInternal = (command) => {
@@ -188,51 +187,51 @@
             renderCommandTable();
         };
 
-        const removeCommandInternal = (id) => {
-            const index = commands.findIndex((command) => command.id === id);
+        const removeCommandInternal = (commandId) => {
+            const index = commands.findIndex((item) => item.id === commandId);
             if (index === -1) {
                 return;
             }
 
             commands.splice(index, 1);
             renderCommandTable();
-            showStatus(t('commandRemoved', 'Command removed.'), 'info');
+            showStatus(t('commandRemoved', '??????? ???????.'), 'info');
         };
 
         const playCommandInternal = (command) => {
             const track = trackMap.get(command.trackId);
             if (!track || !track.isReady()) {
-                showStatus(t('noAudioLoaded', 'Load audio on this track first.'), 'warning');
+                showStatus(t('noAudioLoaded', '??????? ????????? ????? ??? ???? ???????.'), 'warning');
                 return false;
             }
 
             const success = track.playSegment(command.regionStart, command.regionEnd, command.speed);
             if (!success) {
-                showStatus(t('errorPlayback', 'Unable to play the segment.'), 'error');
+                showStatus(t('errorPlayback', '?? ??????? ????????????? ???????.'), 'error');
             }
             return success;
         };
 
         const stopScenarioInternal = (notify = true) => {
-            scenarioTimeouts.forEach((timeoutId) => window.clearTimeout(timeoutId));
+            scenarioTimeouts.forEach((id) => window.clearTimeout(id));
             scenarioTimeouts = [];
             scenarioPlaying = false;
-            updateActionButtons();
+            updateScenarioButtons();
             if (notify) {
-                showStatus(t('scenarioStopped', 'Scenario stopped.'), 'info');
+                showStatus(t('scenarioStopped', '???????? ??????????.'), 'info');
             }
         };
 
         const startScenarioInternal = () => {
             if (!commands.length) {
-                showStatus(t('scenarioEmpty', 'No commands yet.'), 'warning');
+                showStatus(t('scenarioEmpty', '?????? ?????? ????.'), 'warning');
                 return;
             }
 
             stopScenarioInternal(false);
             scenarioPlaying = true;
-            updateActionButtons();
-            showStatus(t('scenarioStarted', 'Scenario started.'), 'info');
+            updateScenarioButtons();
+            showStatus(t('scenarioStarted', '???????? ???????.'), 'info');
 
             const sorted = [...commands].sort((a, b) => a.startOffset - b.startOffset);
 
@@ -244,13 +243,13 @@
                 scenarioTimeouts.push(timeoutId);
             });
 
-            const lastCommand = sorted[sorted.length - 1];
-            const scenarioEndDelay = (lastCommand.startOffset + Math.max(0, lastCommand.regionEnd - lastCommand.regionStart) + 1) * 1000;
+            const last = sorted[sorted.length - 1];
+            const scenarioDuration = (last.startOffset + Math.max(0, last.regionEnd - last.regionStart) + 1) * 1000;
             const completionTimeout = window.setTimeout(() => {
                 scenarioPlaying = false;
-                updateActionButtons();
-                showStatus(t('scenarioCompleted', 'Scenario completed.'), 'success');
-            }, scenarioEndDelay);
+                updateScenarioButtons();
+                showStatus(t('scenarioCompleted', '???????? ????????.'), 'success');
+            }, scenarioDuration);
             scenarioTimeouts.push(completionTimeout);
         };
 
@@ -268,7 +267,7 @@
                 stopScenarioInternal(false);
                 commands.length = 0;
                 renderCommandTable();
-                showStatus(t('scenarioStopped', 'Scenario stopped.'), 'info');
+                showStatus(t('scenarioStopped', '???????? ??????????.'), 'info');
             });
         }
 
@@ -285,10 +284,6 @@
                 }
 
                 const { commandAction, commandId } = button.dataset;
-                if (!commandId) {
-                    return;
-                }
-
                 const command = commands.find((item) => item.id === commandId);
                 if (!command) {
                     return;
@@ -307,34 +302,29 @@
             showStatus,
             addCommand: (payload) => {
                 addCommandInternal(payload);
-                showStatus(t('commandAdded', 'Command added.'), 'success');
+                showStatus(t('commandAdded', '??????? ?????????.'), 'success');
             },
             createCommand: (data) => {
                 commandCounter += 1;
                 return {
                     id: generateId('cmd'),
-                    name: `${t('commandTableTitle', 'Command')} ${commandCounter}`,
+                    name: `${t('commandTableTitle', '???????')} ${commandCounter}`,
                     createdAt: Date.now(),
                     ...data,
                 };
             },
-            registerTrack: (track) => {
-                trackMap.set(track.id, track);
-            },
-            unregisterTrack: (trackId) => {
-                trackMap.delete(trackId);
-            },
+            registerTrack: (track) => trackMap.set(track.id, track),
+            unregisterTrack: (trackId) => trackMap.delete(trackId),
         };
 
-        const trackElements = workspace.querySelectorAll('.awv-track');
-        trackElements.forEach((trackElement) => {
+        workspace.querySelectorAll('.awv-track').forEach((trackElement) => {
             const track = initTrack(trackElement, workspaceApi);
             if (track) {
                 workspaceApi.registerTrack(track);
             }
         });
 
-        updateActionButtons();
+        updateScenarioButtons();
         renderCommandTable();
     };
 
@@ -344,6 +334,8 @@
         const height = parseInt(trackElement.dataset.height || '', 10) || 160;
 
         const selectButton = trackElement.querySelector('.awv-select');
+        const uploadButton = trackElement.querySelector('.awv-upload');
+        const fileInput = trackElement.querySelector('.awv-file-input');
         const playButton = trackElement.querySelector('.awv-play');
         const stopButton = trackElement.querySelector('.awv-stop');
         const playRegionButton = trackElement.querySelector('.awv-play-region');
@@ -355,7 +347,7 @@
         const fileInfo = trackElement.querySelector('.awv-file-info');
         const regionInfo = trackElement.querySelector('.awv-region-info');
         const regionLabel = trackElement.querySelector('.awv-region-label');
-        const trackTitle = trackElement.querySelector('.awv-track-title')?.textContent?.trim() || workspaceApi.t('trackLabel', 'Track %d').replace('%d', trackId);
+        const trackTitle = trackElement.querySelector('.awv-track-title')?.textContent?.trim() || workspaceApi.t('trackLabel', '??????? %d').replace('%d', trackId);
 
         let wave = null;
         let mediaFrame = null;
@@ -370,7 +362,7 @@
 
             if (loading) {
                 progressLabel.hidden = false;
-                progressLabel.textContent = message || workspaceApi.t('loading', 'Loading...');
+                progressLabel.textContent = message || workspaceApi.t('loading', '????????...');
             } else {
                 progressLabel.hidden = true;
                 progressLabel.textContent = '';
@@ -402,7 +394,7 @@
 
             if (playButton) {
                 playButton.disabled = !isReady;
-                playButton.textContent = workspaceApi.t(isPlaying ? 'pause' : 'play', isPlaying ? 'Pause' : 'Play');
+                playButton.textContent = workspaceApi.t(isPlaying ? 'pause' : 'play', isPlaying ? '?????' : '?????????????');
             }
             if (stopButton) {
                 stopButton.disabled = !hasAudio;
@@ -449,8 +441,7 @@
         };
 
         const clearRegions = () => {
-            const regions = getRegionsList();
-            regions.forEach((region) => region.remove());
+            getRegionsList().forEach((region) => region.remove());
             setActiveRegion(null);
             updateControls();
         };
@@ -484,19 +475,15 @@
             });
 
             wave.on('loading', (progress) => {
-                const message = `${workspaceApi.t('loading', 'Loading...')} ${Math.round(progress)}%`;
+                const message = `${workspaceApi.t('loading', '????????...')} ${Math.round(progress)}%`;
                 setLoading(true, message);
             });
 
-            wave.on('play', () => {
-                updateControls();
-            });
-
+            wave.on('play', updateControls);
             wave.on('pause', () => {
                 wave.setPlaybackRate(1);
                 updateControls();
             });
-
             wave.on('finish', () => {
                 wave.setPlaybackRate(1);
                 updateControls();
@@ -515,7 +502,6 @@
             wave.on('region-created', regionHandler);
             wave.on('region-updated', regionHandler);
             wave.on('region-update-end', regionHandler);
-
             wave.on('region-removed', (region) => {
                 if (region && currentRegion && region.id === currentRegion.id) {
                     setActiveRegion(null);
@@ -526,17 +512,11 @@
             wave.on('error', (error) => {
                 console.error(error);
                 setLoading(false);
-                workspaceApi.showStatus(workspaceApi.t('errorPlayback', 'Unable to play the segment.'), 'error');
+                workspaceApi.showStatus(workspaceApi.t('errorPlayback', '?? ??????? ????????????? ???????.'), 'error');
             });
         };
 
-        const loadAudio = (url, label) => {
-            if (!url || !waveContainer) {
-                return;
-            }
-
-            destroyWave();
-
+        const createWave = () => {
             wave = WaveSurfer.create({
                 container: waveContainer,
                 height,
@@ -549,24 +529,36 @@
                 responsive: true,
                 plugins: [
                     WaveSurfer.Regions.create({
-                        dragSelection: {
-                            slop: 5,
-                        },
+                        dragSelection: { slop: 5 },
                     }),
                 ],
             });
 
             attachWaveEvents();
-            setLoading(true);
-            wave.load(url);
+        };
 
-            audioTitle = label || url.split('/').pop() || '';
+        const loadAudio = ({ url, file, label }) => {
+            if (!waveContainer) {
+                return;
+            }
+
+            destroyWave();
+            createWave();
+            setLoading(true);
+
+            if (file) {
+                wave.loadBlob(file);
+            } else if (url) {
+                wave.load(url);
+            }
+
+            audioTitle = label || (file?.name) || (url ? url.split('/').pop() : '') || '';
             if (fileInfo) {
                 fileInfo.hidden = false;
                 fileInfo.textContent = audioTitle;
             }
             if (selectButton) {
-                selectButton.textContent = workspaceApi.t('changeAudio', 'Replace audio');
+                selectButton.textContent = workspaceApi.t('changeAudio', '???????? ?????');
             }
         };
 
@@ -574,31 +566,46 @@
             selectButton.addEventListener('click', (event) => {
                 event.preventDefault();
 
-                if (!window.wp || !wp.media) {
-                    console.error('wp.media is not available. Ensure wp_enqueue_media() is called.');
+                if (window.wp && wp.media) {
+                    if (!mediaFrame) {
+                        mediaFrame = wp.media({
+                            title: workspaceApi.t('selectAudio', '??????? ?????'),
+                            library: { type: ['audio'] },
+                            multiple: false,
+                            button: { text: workspaceApi.t('selectAudio', '??????? ?????') },
+                        });
+
+                        mediaFrame.on('select', () => {
+                            const attachment = mediaFrame.state().get('selection').first();
+                            if (!attachment) {
+                                return;
+                            }
+
+                            const data = attachment.toJSON();
+                            loadAudio({ url: data.url, label: data.filename || data.title });
+                        });
+                    }
+
+                    mediaFrame.open();
+                } else if (fileInput) {
+                    fileInput.click();
+                }
+            });
+        }
+
+        if (uploadButton && fileInput) {
+            uploadButton.addEventListener('click', () => fileInput.click());
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', () => {
+                const file = fileInput.files && fileInput.files[0];
+                if (!file) {
                     return;
                 }
 
-                if (!mediaFrame) {
-                    mediaFrame = wp.media({
-                        title: workspaceApi.t('selectAudio', 'Select audio'),
-                        library: { type: ['audio'] },
-                        multiple: false,
-                        button: { text: workspaceApi.t('selectAudio', 'Select audio') },
-                    });
-
-                    mediaFrame.on('select', () => {
-                        const attachment = mediaFrame.state().get('selection').first();
-                        if (!attachment) {
-                            return;
-                        }
-
-                        const data = attachment.toJSON();
-                        loadAudio(data.url, data.filename || data.title);
-                    });
-                }
-
-                mediaFrame.open();
+                loadAudio({ file, label: file.name });
+                fileInput.value = '';
             });
         }
 
@@ -625,7 +632,7 @@
         if (playRegionButton) {
             playRegionButton.addEventListener('click', () => {
                 if (!wave || !currentRegion) {
-                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2500);
+                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', '??????? ???????? ??????? ?? ???????.'), 2500);
                     return;
                 }
                 wave.setPlaybackRate(1);
@@ -640,27 +647,27 @@
                 }
                 if (currentRegion) {
                     currentRegion.remove();
-                    setActiveRegion(null);
                 } else {
                     clearRegions();
                 }
+                setActiveRegion(null);
             });
         }
 
         if (addCommandButton) {
             addCommandButton.addEventListener('click', () => {
                 if (!currentRegion) {
-                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', 'Create a region on the track first.'), 2500);
+                    showTemporaryMessage(progressLabel, workspaceApi.t('noRegion', '??????? ???????? ??????? ?? ???????.'), 2500);
                     return;
                 }
 
-                const startPrompt = window.prompt(workspaceApi.t('promptStart', 'Enter start offset (seconds)'), '0');
+                const startPrompt = window.prompt(workspaceApi.t('promptStart', '??????? ????? ??????? (? ????????)'), '0');
                 if (startPrompt === null) {
                     return;
                 }
                 const startOffset = Math.max(0, parseNumber(startPrompt, 0));
 
-                const speedPrompt = window.prompt(workspaceApi.t('promptSpeed', 'Enter playback speed (for example 1 or 0.75)'), '1');
+                const speedPrompt = window.prompt(workspaceApi.t('promptSpeed', '??????? ???????? ??????????????? (????????, 1 ??? 0.75)'), '1');
                 if (speedPrompt === null) {
                     return;
                 }
@@ -680,7 +687,7 @@
                 });
 
                 if (!command) {
-                    workspaceApi.showStatus(workspaceApi.t('commandFailed', 'Failed to add command.'), 'error');
+                    workspaceApi.showStatus(workspaceApi.t('commandFailed', '?? ??????? ???????? ???????.'), 'error');
                     return;
                 }
 
@@ -688,7 +695,13 @@
             });
         }
 
-        updateControls();
+        const init = () => {
+            updateControls();
+            setLoading(false);
+            setActiveRegion(null);
+        };
+
+        init();
 
         return {
             id: trackId,
