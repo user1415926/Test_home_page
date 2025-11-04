@@ -715,23 +715,35 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
         }
 
         if ( $group_index < $start_group ) {
+            dropi_debug_log( sprintf( 'Dropi: skipping group %d before start %d', $group_index, $start_group ) );
             dropi_xmlreader_skip_current( $reader );
             continue;
         }
 
         $node = $reader->expand();
         if ( ! $node ) {
+            dropi_debug_log( sprintf( 'Dropi: unable to expand node for group %d', $group_index ) );
             dropi_xmlreader_skip_current( $reader );
             continue;
         }
 
         $simple = simplexml_import_dom( $node );
         if ( ! $simple ) {
+            dropi_debug_log( sprintf( 'Dropi: simplexml_import_dom failed for group %d', $group_index ) );
             dropi_xmlreader_skip_current( $reader );
             continue;
         }
 
         $group_data = dropi_build_group_from_xml( $simple, $lang );
+
+        dropi_debug_log( sprintf(
+            'Dropi: processing group idx=%d key=%s sku=%s variations=%d dry=%d',
+            $group_index,
+            isset( $group_data['group_key'] ) ? $group_data['group_key'] : 'n/a',
+            isset( $group_data['base_sku'] ) ? $group_data['base_sku'] : '',
+            isset( $group_data['variations'] ) ? count( (array) $group_data['variations'] ) : 0,
+            $opts['dry_run'] ? 1 : 0
+        ) );
 
         $report = array(
             'preview'          => array(),
@@ -754,19 +766,39 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
 
         $processed++;
 
+        dropi_debug_log( sprintf(
+            'Dropi: completed group idx=%d processed_count=%d created_in_batch=%d updated_in_batch=%d errors_in_group=%d',
+            $group_index,
+            $processed,
+            $report['created_products'],
+            $report['updated_products'],
+            count( $report['errors'] )
+        ) );
+
         dropi_xmlreader_skip_current( $reader );
 
         if ( $processed >= $limit ) {
+            dropi_debug_log( sprintf( 'Dropi: processed limit reached (%d)', $limit ) );
             break;
         }
 
         if ( ( microtime( true ) - $start_time ) > $time_limit ) {
             $timed_out = true;
+            dropi_debug_log( 'Dropi: runtime limit reached' );
             break;
         }
     }
 
     $reader->close();
+
+    dropi_debug_log( sprintf(
+        'Dropi: chunk finished processed=%d total_groups=%d start_group=%d next_offset=%s dry=%d',
+        $processed,
+        $total_groups,
+        $start_group,
+        ( ( $processed > 0 ) ? (string) ( $start_group + $processed ) : 'null' ),
+        $opts['dry_run'] ? 1 : 0
+    ) );
 
     $next_offset = ( $processed > 0 ) ? $start_group + $processed : null;
     if ( null !== $next_offset && $next_offset >= $total_groups ) {
