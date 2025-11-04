@@ -123,6 +123,22 @@ function dropi_sideload_image_get_id( $image_url, $post_id = 0 ) {
     return $attachment_id;
 }
 
+function dropi_xmlreader_skip_current( XMLReader $reader ) {
+    if ( $reader->isEmptyElement ) {
+        return;
+    }
+
+    $depth = 1;
+
+    while ( $depth > 0 && $reader->read() ) {
+        if ( XMLReader::ELEMENT === $reader->nodeType && ! $reader->isEmptyElement ) {
+            $depth++;
+        } elseif ( XMLReader::END_ELEMENT === $reader->nodeType ) {
+            $depth--;
+        }
+    }
+}
+
 function dropi_xml_attr( SimpleXMLElement $element = null, $name = '', $namespace = null ) {
     if ( ! $element || '' === $name ) {
         return '';
@@ -698,20 +714,20 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
             break;
         }
 
-        if ( $group_index < $start_group || $processed >= $limit ) {
-            $reader->next( 'product' );
+        if ( $group_index < $start_group ) {
+            dropi_xmlreader_skip_current( $reader );
             continue;
         }
 
         $node = $reader->expand();
         if ( ! $node ) {
-            $reader->next( 'product' );
+            dropi_xmlreader_skip_current( $reader );
             continue;
         }
 
         $simple = simplexml_import_dom( $node );
         if ( ! $simple ) {
-            $reader->next( 'product' );
+            dropi_xmlreader_skip_current( $reader );
             continue;
         }
 
@@ -738,12 +754,16 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
 
         $processed++;
 
+        dropi_xmlreader_skip_current( $reader );
+
+        if ( $processed >= $limit ) {
+            break;
+        }
+
         if ( ( microtime( true ) - $start_time ) > $time_limit ) {
             $timed_out = true;
             break;
         }
-
-        $reader->next( 'product' );
     }
 
     $reader->close();
