@@ -700,6 +700,7 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
     $time_limit     = max( 5, (int) apply_filters( 'dropi_runtime_limit_seconds', 20 ) );
     $start_time     = microtime( true );
     $timed_out      = false;
+    $has_more       = false;
 
     while ( $reader->read() ) {
         if ( XMLReader::ELEMENT !== $reader->nodeType || 'product' !== $reader->localName ) {
@@ -794,12 +795,14 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
 
         if ( $processed >= $limit ) {
             dropi_debug_log( sprintf( 'Dropi: processed limit reached (%d)', $limit ) );
+            $has_more = true;
             break;
         }
 
         if ( ( microtime( true ) - $start_time ) > $time_limit ) {
             $timed_out = true;
             dropi_debug_log( 'Dropi: runtime limit reached' );
+            $has_more = true;
             break;
         }
     }
@@ -815,9 +818,13 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
         $opts['dry_run'] ? 1 : 0
     ) );
 
-    $next_offset = ( $processed > 0 ) ? $start_group + $processed : null;
-    if ( null !== $next_offset && $next_offset >= $total_groups ) {
-        $next_offset = null;
+    $next_offset = null;
+    if ( $processed > 0 && $has_more ) {
+        $next_offset = $start_group + $processed;
+    }
+
+    if ( $processed === 0 && $has_more ) {
+        $next_offset = $start_group;
     }
 
     $created_count = 0;
@@ -832,11 +839,16 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
         }
     }
 
+    $reported_total = $total_groups;
+    if ( $has_more ) {
+        $reported_total = max( $total_groups, $start_group + $processed + 1 );
+    }
+
     return array(
         'processed_groups' => $processed,
         'start_group'      => $start_group,
         'groups_per_batch' => $limit,
-        'groups_total'     => $total_groups,
+        'groups_total'     => $reported_total,
         'next_offset'      => $next_offset,
         'errors'           => $errors,
         'preview'          => $opts['dry_run'] ? $preview : array(),
