@@ -727,9 +727,24 @@ function dropi_process_feed_chunk( $xml_path, $args = array() ) {
             continue;
         }
 
-        $simple = simplexml_import_dom( $node );
+        $dom     = new DOMDocument();
+        $import  = $dom->importNode( $node, true );
+        if ( ! $import ) {
+            dropi_debug_log( sprintf( 'Dropi: DOM import failed for group %d', $group_index ) );
+            dropi_xmlreader_skip_current( $reader );
+            continue;
+        }
+
+        $dom->appendChild( $import );
+
+        $libxml_previous = libxml_use_internal_errors( true );
+        $simple          = simplexml_import_dom( $dom );
+        $libxml_errors   = libxml_get_errors();
+        libxml_clear_errors();
+        libxml_use_internal_errors( $libxml_previous );
+
         if ( ! $simple ) {
-            dropi_debug_log( sprintf( 'Dropi: simplexml_import_dom failed for group %d', $group_index ) );
+            dropi_debug_log( sprintf( 'Dropi: simplexml_import_dom failed for group %d errors=%d', $group_index, count( $libxml_errors ) ) );
             dropi_xmlreader_skip_current( $reader );
             continue;
         }
