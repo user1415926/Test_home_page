@@ -1,0 +1,188 @@
+.woo-live-search {
+    position: relative;
+    display: grid;
+    gap: 1rem;
+    padding: 1.5rem;
+    background-color: #f8f9fb;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.woo-live-search__form {
+    display: grid;
+    grid-template-columns: 1fr minmax(200px, 220px) auto;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.woo-live-search__label {
+    display: flex;
+    flex-direction: column;
+}
+
+.woo-live-search__input,
+.woo-live-search__select {
+    width: 100%;
+    height: 46px;
+    padding: 0 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #dcdfe6;
+    font-size: 15px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    background-color: #fff;
+}
+
+.woo-live-search__input:focus,
+.woo-live-search__select:focus {
+    outline: none;
+    border-color: #2f67ff;
+    box-shadow: 0 0 0 3px rgba(47, 103, 255, 0.15);
+}
+
+.woo-live-search__submit {
+    height: 46px;
+    padding: 0 1.5rem;
+    border-radius: 6px;
+    border: none;
+    background-color: #2f67ff;
+    color: #fff;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.woo-live-search__submit:hover,
+.woo-live-search__submit:focus {
+    background-color: #244fcc;
+    transform: translateY(-1px);
+}
+
+.woo-live-search__suggestions {
+    position: absolute;
+    top: 92px;
+    left: 1.5rem;
+    right: calc(1.5rem + 220px + 0.75rem + 120px);
+    max-height: 240px;
+    overflow-y: auto;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 12px 32px rgba(27, 37, 59, 0.15);
+    border: 1px solid #e2e6f0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 20;
+}
+
+.woo-live-search__suggestions--visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.woo-live-search__suggestions-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 0;
+}
+
+.woo-live-search__suggestion {
+    margin: 0;
+}
+
+.woo-live-search__suggestion-button {
+    width: 100%;
+    padding: 0.65rem 1rem;
+    border: none;
+    background-color: transparent;
+    text-align: left;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.woo-live-search__suggestion-button:hover,
+.woo-live-search__suggestion-button:focus {
+    background-color: rgba(47, 103, 255, 0.08);
+    color: #244fcc;
+    outline: none;
+}
+
+.woo-live-search__status {
+    font-size: 14px;
+    min-height: 20px;
+    color: #556;
+}
+
+.woo-live-search__status[data-state="loading"]::after {
+    content: ' …';
+}
+
+.woo-live-search__results {
+    min-height: 100px;
+}
+
+.woo-live-search__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+}
+
+.woo-live-search__item {
+    background-color: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(226, 230, 240, 0.8);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.woo-live-search__item-link {
+    text-decoration: none;
+    color: inherit;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.woo-live-search__item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+.woo-live-search__item-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.woo-live-search__item-price {
+    font-size: 15px;
+    color: #2f67ff;
+    font-weight: 600;
+}
+
+.woo-live-search__empty {
+    margin: 0;
+    font-size: 15px;
+    color: #7a8197;
+}
+
+@media (max-width: 768px) {
+    .woo-live-search__form {
+        grid-template-columns: 1fr;
+    }
+
+    .woo-live-search__suggestions {
+        position: static;
+        left: initial;
+        right: initial;
+        transform: none;
+        box-shadow: none;
+        border: 1px solid #e2e6f0;
+        opacity: 1;
+        visibility: visible;
+        max-height: 180px;
+    }
+}
