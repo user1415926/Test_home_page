@@ -499,6 +499,7 @@ function myrobimy_cargo_render_rides(WP_Query $query, array $args = []): string
         return ob_get_clean();
     }
 
+    $featured_product_id = myrobimy_cargo_get_featured_product_id();
     ?>
     <div class="list-group myrobimy-rides-list">
         <?php foreach ($posts as $post): ?>
@@ -512,6 +513,16 @@ function myrobimy_cargo_render_rides(WP_Query $query, array $args = []): string
             $telegram = get_post_meta($ride_id, 'telegram', true);
             $email = get_post_meta($ride_id, 'email', true);
             $is_featured = myrobimy_cargo_is_featured($ride_id);
+            $vip_url = '';
+            if (!$is_featured && $featured_product_id) {
+                $vip_url = add_query_arg(
+                    [
+                        'add-to-cart' => $featured_product_id,
+                        'ride_id' => $ride_id,
+                    ],
+                    get_permalink($featured_product_id)
+                );
+            }
             ?>
             <div class="list-group-item list-group-item-action flex-column align-items-start">
                 <div class="d-flex w-100 justify-content-between">
@@ -535,6 +546,13 @@ function myrobimy_cargo_render_rides(WP_Query $query, array $args = []): string
                         <span class="me-3"><?php printf('%s %s', esc_html__('E-mail:', 'myrobimy-cargo'), esc_html($email)); ?></span>
                     <?php endif; ?>
                 </small>
+                <?php if ($vip_url): ?>
+                    <div class="mt-2 text-end">
+                        <a class="btn btn-warning btn-sm" href="<?php echo esc_url($vip_url); ?>">
+                            <?php esc_html_e('Сделать VIP', 'myrobimy-cargo'); ?>
+                        </a>
+                    </div>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </div>
