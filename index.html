@@ -215,4 +215,73 @@
         </ul>
     </section>
     <footer></footer>
+    <script>
+        (function () {
+            const STORAGE_KEY = 'preferredLanguage';
+            const RU_SELECTOR = '[id$="-ru"]';
+            const PL_SELECTOR = '[id$="-pl"]';
+            const DATE_INPUT_SELECTOR = 'input[type="date"]';
+            const LANG_CODES = {
+                ru: 'ru-RU',
+                pl: 'pl-PL',
+            };
+
+            const safeGetStoredLang = () => {
+                try {
+                    const stored = localStorage.getItem(STORAGE_KEY);
+                    return stored === 'pl' || stored === 'ru' ? stored : null;
+                } catch (error) {
+                    return null;
+                }
+            };
+
+            const safeSetStoredLang = (lang) => {
+                try {
+                    localStorage.setItem(STORAGE_KEY, lang);
+                } catch (error) {
+                    // ignore storage failures (e.g. private mode)
+                }
+            };
+
+            const detectInitialLang = () => {
+                const stored = safeGetStoredLang();
+                if (stored) {
+                    return stored;
+                }
+                const browserLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+                if (browserLang.startsWith('pl')) {
+                    return 'pl';
+                }
+                return 'ru';
+            };
+
+            const applyLang = (lang) => {
+                const isRu = lang === 'ru';
+                document.querySelectorAll(PL_SELECTOR).forEach((el) => el.classList.toggle('d-none', isRu));
+                document.querySelectorAll(RU_SELECTOR).forEach((el) => el.classList.toggle('d-none', !isRu));
+                const langCode = LANG_CODES[lang] || lang;
+                document.documentElement.setAttribute('lang', langCode);
+                document.querySelectorAll(DATE_INPUT_SELECTOR).forEach((input) => {
+                    input.setAttribute('lang', langCode);
+                });
+                document.querySelectorAll('.lang-toggle').forEach((btn) => {
+                    const isActive = btn.dataset.lang === lang;
+                    btn.classList.toggle('active', isActive);
+                    btn.setAttribute('aria-pressed', isActive);
+                });
+            };
+
+            const initialLang = detectInitialLang();
+            applyLang(initialLang);
+            safeSetStoredLang(initialLang);
+
+            document.querySelectorAll('.lang-toggle').forEach((btn) => {
+                btn.addEventListener('click', function () {
+                    const lang = this.dataset.lang === 'pl' ? 'pl' : 'ru';
+                    applyLang(lang);
+                    safeSetStoredLang(lang);
+                });
+            });
+        })();
+    </script>
 </body>
