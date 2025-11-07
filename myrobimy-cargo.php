@@ -327,11 +327,12 @@ add_shortcode('rides_list', 'myrobimy_cargo_shortcode_rides_list');
 function myrobimy_cargo_shortcode_rides_list($atts): string
 {
     $atts = shortcode_atts([
-        'count' => 20,
+        'count' => 5,
         'status' => 'publish',
     ], $atts, 'rides_list');
 
     $per_page = max(1, min(100, (int) $atts['count']));
+    $page = isset($_GET['mr_list_page']) ? max(1, (int) $_GET['mr_list_page']) : 1;
     $query = new WP_Query([
         'post_type' => 'ride',
         'post_status' => array_map('trim', explode(',', $atts['status'])),
@@ -340,10 +341,12 @@ function myrobimy_cargo_shortcode_rides_list($atts): string
         'meta_key' => 'date',
         'order' => 'ASC',
         'meta_type' => 'DATE',
+        'paged' => $page,
     ]);
 
     return myrobimy_cargo_render_rides($query, [
-        'show_pagination' => false,
+        'show_pagination' => true,
+        'pagination_param' => 'mr_list_page',
         'featured_top_limit' => 5,
     ]);
 }
@@ -391,7 +394,7 @@ add_shortcode('rides_search', 'myrobimy_cargo_shortcode_rides_search');
 function myrobimy_cargo_shortcode_rides_search($atts): string
 {
     $atts = shortcode_atts([
-        'per_page' => 20,
+        'per_page' => 5,
         'show_form_only' => 'no',
     ], $atts, 'rides_search');
 
@@ -399,6 +402,7 @@ function myrobimy_cargo_shortcode_rides_search($atts): string
     $current_from = isset($_GET['ride_from']) ? sanitize_text_field(wp_unslash($_GET['ride_from'])) : '';
     $current_to = isset($_GET['ride_to']) ? sanitize_text_field(wp_unslash($_GET['ride_to'])) : '';
     $current_date = isset($_GET['ride_date']) ? sanitize_text_field(wp_unslash($_GET['ride_date'])) : '';
+    $page = isset($_GET['mr_search_page']) ? max(1, (int) $_GET['mr_search_page']) : 1;
 
     ob_start();
     ?>
@@ -458,6 +462,7 @@ function myrobimy_cargo_shortcode_rides_search($atts): string
         'meta_key' => 'date',
         'meta_type' => 'DATE',
         'order' => 'ASC',
+        'paged' => $page,
     ];
 
     if (!empty($meta_query)) {
@@ -466,7 +471,8 @@ function myrobimy_cargo_shortcode_rides_search($atts): string
 
     $results = new WP_Query($query_args);
     echo myrobimy_cargo_render_rides($results, [
-        'show_pagination' => false,
+        'show_pagination' => true,
+        'pagination_param' => 'mr_search_page',
         'featured_top_limit' => 5,
         'empty_message' => __('Рейсов не найдено. Измените параметры поиска.', 'myrobimy-cargo'),
     ]);
