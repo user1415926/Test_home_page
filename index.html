@@ -220,6 +220,11 @@
             const STORAGE_KEY = 'preferredLanguage';
             const RU_SELECTOR = '[id$="-ru"]';
             const PL_SELECTOR = '[id$="-pl"]';
+            const DATE_INPUT_SELECTOR = 'input[type="date"]';
+            const LANG_CODES = {
+                ru: 'ru-RU',
+                pl: 'pl-PL',
+            };
 
             const safeGetStoredLang = () => {
                 try {
@@ -254,7 +259,11 @@
                 const isRu = lang === 'ru';
                 document.querySelectorAll(PL_SELECTOR).forEach((el) => el.classList.toggle('d-none', isRu));
                 document.querySelectorAll(RU_SELECTOR).forEach((el) => el.classList.toggle('d-none', !isRu));
-                document.documentElement.setAttribute('lang', lang);
+                const langCode = LANG_CODES[lang] || lang;
+                document.documentElement.setAttribute('lang', langCode);
+                document.querySelectorAll(DATE_INPUT_SELECTOR).forEach((input) => {
+                    input.setAttribute('lang', langCode);
+                });
                 document.querySelectorAll('.lang-toggle').forEach((btn) => {
                     const isActive = btn.dataset.lang === lang;
                     btn.classList.toggle('active', isActive);
