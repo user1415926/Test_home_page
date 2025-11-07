@@ -58,7 +58,16 @@ if ( ! class_exists( 'WC_Bulk_Price_Adjuster' ) ) {
 		 * WC_Bulk_Price_Adjuster constructor.
 		 */
 		private function __construct() {
-			$this->is_wc_active = class_exists( 'WooCommerce' );
+			add_action( 'plugins_loaded', array( $this, 'init' ) );
+		}
+
+		/**
+		 * Initialize plugin after all other plugins loaded.
+		 *
+		 * @return void
+		 */
+		public function init() {
+			$this->is_wc_active = class_exists( 'WooCommerce' ) || function_exists( 'WC' );
 
 			if ( ! $this->is_wc_active ) {
 				add_action( 'admin_notices', array( $this, 'woocommerce_missing_notice' ) );
